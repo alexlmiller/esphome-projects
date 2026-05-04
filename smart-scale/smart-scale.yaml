@@ -81,6 +81,11 @@ wifi:
 
 captive_portal:
 
+# Time source — required by the syslog component for RFC 3164 timestamps.
+time:
+  - platform: sntp
+    id: sntp_time
+
 # =============================================================================
 # I²C BUS (shared by SSD1309 OLED and LIS3DH accelerometer)
 # =============================================================================
