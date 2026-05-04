@@ -1,0 +1,48 @@
+# Example wrapper showing how to consume desk-controller.yaml.
+#
+# Drop this file (renamed to suit) into your ESPHome dashboard's config
+# folder. Update the substitutions for your specific desk and ESP board,
+# point your `secrets.yaml` at the right WiFi/API/OTA values, then flash.
+
+substitutions:
+  # --- Device identity ---
+  device_id: standing-desk-office       # mDNS hostname, also the entity prefix
+  device_name: "Standing Desk"
+
+  # --- Travel limits in inches ---
+  # First flash will use these defaults; afterwards override via the
+  # "Min Height" / "Max Height" entities in HA (they persist via
+  # restore_value:true so you don't have to re-flash).
+  desk_min_height: "25.2"
+  desk_max_height: "50.8"
+
+  # --- Override these only if your hardware is not an S3 Mini ---
+  # M5Stack NanoC6 example:
+  #   board: esp32-c6-devkitc-1
+  #   tx_pin: GPIO1
+  #   rx_pin: GPIO2
+  #   status_led_pin: GPIO7   # not WS2812 — see note in canonical YAML
+  # board: esp32-s3-devkitc-1
+  # tx_pin: GPIO13
+  # rx_pin: GPIO12
+  # status_led_pin: GPIO21
+
+packages:
+  base: github://alexlmiller/esphome-projects/desk-controller/desk-controller.yaml@main
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: ${device_id}-ap
+    password: !secret wifi_fallback_pw
+  power_save_mode: none
+  fast_connect: true

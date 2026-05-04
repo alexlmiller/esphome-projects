@@ -1,0 +1,345 @@
+# Standing Desk dashboard view (Lovelace, sections-style).
+#
+# Install: open the dashboard you want to add this to, click the 3-dot
+# menu → Edit Dashboard → 3-dot menu → Raw configuration editor, then
+# paste this entry into the `views:` array. Save.
+#
+# Before pasting, do a global find-and-replace on the placeholder
+# `<DEVICE_PREFIX>` — replace it with your device's actual entity_id
+# prefix. e.g. if your device is named "alex-office-desk", the prefix
+# is `alex_office_desk` (used as `sensor.alex_office_desk_height`).
+#
+# Required HACS cards:
+#   - button-card             https://github.com/custom-cards/button-card
+#   - mushroom                https://github.com/piitaya/lovelace-mushroom
+#   - apexcharts-card         https://github.com/RomRider/apexcharts-card
+#
+# Required HA YAML package: ./desk_sit_stand_tracker.yaml — without it
+# the stats card shows a placeholder and the binary_sensor in the gauge
+# logic will be unavailable (status pill defaults to SITTING).
+
+title: Desk
+path: desk
+icon: mdi:desk
+type: sections
+max_columns: 2
+sections:
+  - type: grid
+    column_span: 2
+    cards:
+      # ---------- HERO: vertical bar gauge + current height + status ----------
+      - type: custom:button-card
+        entity: sensor.<DEVICE_PREFIX>_height
+        show_name: false
+        show_state: false
+        show_icon: false
+        tap_action: { action: none }
+        hold_action: { action: none }
+        custom_fields:
+          gauge: |
+            [[[
+              const h = states['sensor.<DEVICE_PREFIX>_height'];
+              const p = states['sensor.<DEVICE_PREFIX>_height_percent'];
+              const mn = states['number.<DEVICE_PREFIX>_min_height'];
+              const mx = states['number.<DEVICE_PREFIX>_max_height'];
+              const s = states['sensor.<DEVICE_PREFIX>_status'];
+              const stand = states['binary_sensor.<DEVICE_PREFIX>_standing'];
+
+              const pct = Math.max(0, Math.min(100, parseFloat(p?.state ?? 0)));
+              const cur = parseFloat(h?.state ?? 0).toFixed(1);
+              const min = parseFloat(mn?.state ?? 25.2).toFixed(1);
+              const max = parseFloat(mx?.state ?? 50.8).toFixed(1);
+              const status = (s?.state || 'Idle');
+              const remaining = (parseFloat(max) - parseFloat(cur)).toFixed(1);
+              const standing = stand?.state === 'on';
+
+              const palette = {
+                Idle:         ['#3a8dde', '#67b8f5'],
+                Raising:      ['#4caf50', '#80e27e'],
+                Lowering:     ['#ff9800', '#ffc947'],
+                Initialising: ['#9e9e9e', '#cfcfcf']
+              };
+              const [c1, c2] = palette[status] || palette.Idle;
+
+              const modeIcon = standing
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path fill="currentColor" d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m9 7h-6v13h-2v-6h-2v6H9V9H3V7h18z"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path fill="currentColor" d="M7 14c1.66 0 3-1.34 3-3S8.66 8 7 8s-3 1.34-3 3 1.34 3 3 3m6.76 1.74L17.6 12l4 4-1.41 1.41L18 15.83V22h-2v-7l-2.24-1.26zM10 22v-3l3-2.5V12c0-2.21 1.79-4 4-4 1.18 0 2.24.51 2.97 1.32L17.79 11.5C17.5 11.19 17.07 11 16.6 11c-.83 0-1.5.67-1.5 1.5V14H17v6h-7z"/></svg>';
+
+              const modeLabel = standing ? 'STANDING' : 'SITTING';
+              const modeColor = standing ? '#4caf50' : '#7b8a99';
+
+              return `
+                <div style="display:flex;flex-direction:row;height:100%;gap:24px;align-items:stretch;">
+                  <div style="flex:0 0 56px;position:relative;">
+                    <div style="position:absolute;inset:0;background:rgba(127,127,127,0.08);border-radius:28px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(127,127,127,0.10);">
+                      <div style="position:absolute;left:0;right:0;bottom:0;height:${pct}%;background:linear-gradient(to top, ${c1}, ${c2});border-radius:0 0 28px 28px;transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease;box-shadow:0 0 32px ${c1}55;"></div>
+                      <div style="position:absolute;left:6px;right:6px;top:50%;height:1px;background:rgba(127,127,127,0.18);"></div>
+                    </div>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;min-width:0;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px;">
+                      <div style="font:600 10px/1.4 system-ui;color:var(--secondary-text-color);text-transform:uppercase;letter-spacing:0.18em;">Current height</div>
+                      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <div style="background:${modeColor}1a;color:${modeColor};padding:4px 12px;border-radius:12px;font:700 10px/1 system-ui;letter-spacing:0.15em;display:inline-flex;align-items:center;">${modeIcon}${modeLabel}</div>
+                        <div style="background:${c1}22;color:${c1};padding:4px 12px;border-radius:12px;font:700 10px/1 system-ui;letter-spacing:0.18em;text-transform:uppercase;">${status}</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                      <div style="display:flex;align-items:baseline;gap:0;">
+                        <span style="font-size:56px;font-weight:200;color:var(--primary-text-color);line-height:1;letter-spacing:-0.02em;">${cur}</span>
+                        <span style="font-size:28px;color:var(--secondary-text-color);font-weight:300;margin-left:2px;">″</span>
+                      </div>
+                      <div style="font-size:12px;color:var(--secondary-text-color);margin-top:6px;letter-spacing:0.02em;">${pct.toFixed(0)}% of travel · ${remaining}″ to top</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;width:100%;font:11px/1 'SF Mono',ui-monospace,monospace;color:var(--secondary-text-color);letter-spacing:0.05em;">
+                      <span>${min}″ min</span>
+                      <span>${max}″ max</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            ]]]
+        styles:
+          card:
+            - height: 260px
+            - padding: 24px
+            - border-radius: 16px
+          grid:
+            - grid-template-areas: '"gauge"'
+            - height: 100%
+          custom_fields:
+            gauge:
+              - height: 100%
+
+      # ---------- PRESETS row (4 mushroom cards, M1..M4) ----------
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: "{{ states('sensor.<DEVICE_PREFIX>_m1_height') | float(0) | round(1) }}″"
+            icon: mdi:numeric-1-circle
+            icon_color: "{% set h = states('sensor.<DEVICE_PREFIX>_height') | float(0) %}{% set m = states('sensor.<DEVICE_PREFIX>_m1_height') | float(0) %}{% if (h - m) | abs < 0.5 %}deep-orange{% else %}blue{% endif %}"
+            layout: vertical
+            icon_size: 32px
+            fill_container: true
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_m1 }
+            hold_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_set_m1 }
+            double_tap_action: { action: more-info, entity: sensor.<DEVICE_PREFIX>_m1_height }
+
+          - type: custom:mushroom-template-card
+            primary: "{{ states('sensor.<DEVICE_PREFIX>_m2_height') | float(0) | round(1) }}″"
+            icon: mdi:numeric-2-circle
+            icon_color: "{% set h = states('sensor.<DEVICE_PREFIX>_height') | float(0) %}{% set m = states('sensor.<DEVICE_PREFIX>_m2_height') | float(0) %}{% if (h - m) | abs < 0.5 %}deep-orange{% else %}blue{% endif %}"
+            layout: vertical
+            icon_size: 32px
+            fill_container: true
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_m2 }
+            hold_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_set_m2 }
+            double_tap_action: { action: more-info, entity: sensor.<DEVICE_PREFIX>_m2_height }
+
+          - type: custom:mushroom-template-card
+            primary: "{{ states('sensor.<DEVICE_PREFIX>_m3_height') | float(0) | round(1) }}″"
+            icon: mdi:numeric-3-circle
+            icon_color: "{% set h = states('sensor.<DEVICE_PREFIX>_height') | float(0) %}{% set m = states('sensor.<DEVICE_PREFIX>_m3_height') | float(0) %}{% if (h - m) | abs < 0.5 %}deep-orange{% else %}blue{% endif %}"
+            layout: vertical
+            icon_size: 32px
+            fill_container: true
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_m3 }
+            hold_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_set_m3 }
+            double_tap_action: { action: more-info, entity: sensor.<DEVICE_PREFIX>_m3_height }
+
+          - type: custom:mushroom-template-card
+            primary: "{{ states('sensor.<DEVICE_PREFIX>_m4_height') | float(0) | round(1) }}″"
+            icon: mdi:numeric-4-circle
+            icon_color: "{% set h = states('sensor.<DEVICE_PREFIX>_height') | float(0) %}{% set m = states('sensor.<DEVICE_PREFIX>_m4_height') | float(0) %}{% if (h - m) | abs < 0.5 %}deep-orange{% else %}blue{% endif %}"
+            layout: vertical
+            icon_size: 32px
+            fill_container: true
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_m4 }
+            hold_action:
+              action: perform-action
+              perform_action: button.press
+              target: { entity_id: button.<DEVICE_PREFIX>_set_m4 }
+            double_tap_action: { action: more-info, entity: sensor.<DEVICE_PREFIX>_m4_height }
+
+      # ---------- CONTROLS strip (chips + slider) ----------
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-chips-card
+            alignment: justify
+            chips:
+              - type: template
+                icon: mdi:chevron-double-up
+                icon_color: green
+                content: Up
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: { entity_id: button.<DEVICE_PREFIX>_nudge_up }
+              - type: template
+                icon: mdi:stop-circle
+                icon_color: red
+                content: Stop
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: { entity_id: button.<DEVICE_PREFIX>_stop }
+              - type: template
+                icon: mdi:chevron-double-down
+                icon_color: orange
+                content: Down
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: { entity_id: button.<DEVICE_PREFIX>_nudge_down }
+          - type: custom:mushroom-number-card
+            entity: number.<DEVICE_PREFIX>_height
+            name: Fine adjust
+            icon: mdi:tune-vertical
+            display_mode: slider
+            primary_info: name
+            secondary_info: state
+            fill_container: true
+
+  # ---------- SIT/STAND card (left half on desktop, full-width on mobile) ----------
+  - type: grid
+    column_span: 1
+    cards:
+      - type: custom:button-card
+        entity: sensor.<DEVICE_PREFIX>_height
+        show_name: false
+        show_state: false
+        show_icon: false
+        tap_action: { action: none }
+        hold_action: { action: none }
+        custom_fields:
+          stats: |
+            [[[
+              const sit = states['sensor.<DEVICE_PREFIX>_sitting_today'];
+              const stand = states['sensor.<DEVICE_PREFIX>_standing_today'];
+
+              const sitFmt = (sit && !['unknown','unavailable','none'].includes(sit.state))
+                ? { hr: Math.floor(parseFloat(sit.state)), mn: Math.round((parseFloat(sit.state) - Math.floor(parseFloat(sit.state))) * 60), total: parseFloat(sit.state) }
+                : null;
+              const standFmt = (stand && !['unknown','unavailable','none'].includes(stand.state))
+                ? { hr: Math.floor(parseFloat(stand.state)), mn: Math.round((parseFloat(stand.state) - Math.floor(parseFloat(stand.state))) * 60), total: parseFloat(stand.state) }
+                : null;
+
+              if (!sitFmt && !standFmt) {
+                return `<div style="text-align:center;padding:24px 12px;color:var(--secondary-text-color);font-size:13px;">
+                  <div style="font-size:28px;margin-bottom:8px;opacity:0.4;">⏱</div>
+                  <div style="font-weight:600;color:var(--primary-text-color);margin-bottom:4px;">Sit / Stand tracking pending</div>
+                  <div>Install desk_sit_stand_tracker.yaml and restart Home Assistant.</div>
+                </div>`;
+              }
+
+              const sH = sitFmt?.total ?? 0;
+              const stH = standFmt?.total ?? 0;
+              const total = sH + stH;
+              const sitPct = total > 0 ? (sH / total * 100) : 50;
+              const standPct = total > 0 ? (stH / total * 100) : 50;
+
+              const sitColor = '#7b8a99';
+              const standColor = '#4caf50';
+
+              return `
+                <div style="display:flex;flex-direction:column;gap:14px;padding:4px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font:600 10px/1 system-ui;color:var(--secondary-text-color);text-transform:uppercase;letter-spacing:0.18em;">Today</div>
+                    <div style="font:11px/1 system-ui;color:var(--secondary-text-color);">${total > 0 ? `${total.toFixed(1)}h tracked` : 'no activity'}</div>
+                  </div>
+                  <div style="display:flex;gap:24px;align-items:flex-start;">
+                    <div style="flex:1;">
+                      <div style="display:flex;align-items:baseline;gap:6px;">
+                        <span style="font-size:32px;font-weight:200;color:${sitColor};line-height:1;">${sitFmt?.hr ?? 0}</span>
+                        <span style="font-size:14px;color:var(--secondary-text-color);">h</span>
+                        <span style="font-size:32px;font-weight:200;color:${sitColor};line-height:1;margin-left:4px;">${(sitFmt?.mn ?? 0).toString().padStart(2,'0')}</span>
+                        <span style="font-size:14px;color:var(--secondary-text-color);">m</span>
+                      </div>
+                      <div style="font:600 11px/1 system-ui;color:${sitColor};text-transform:uppercase;letter-spacing:0.15em;margin-top:6px;">Sitting · ${sitPct.toFixed(0)}%</div>
+                    </div>
+                    <div style="flex:1;text-align:right;">
+                      <div style="display:flex;align-items:baseline;gap:6px;justify-content:flex-end;">
+                        <span style="font-size:32px;font-weight:200;color:${standColor};line-height:1;">${standFmt?.hr ?? 0}</span>
+                        <span style="font-size:14px;color:var(--secondary-text-color);">h</span>
+                        <span style="font-size:32px;font-weight:200;color:${standColor};line-height:1;margin-left:4px;">${(standFmt?.mn ?? 0).toString().padStart(2,'0')}</span>
+                        <span style="font-size:14px;color:var(--secondary-text-color);">m</span>
+                      </div>
+                      <div style="font:600 11px/1 system-ui;color:${standColor};text-transform:uppercase;letter-spacing:0.15em;margin-top:6px;">Standing · ${standPct.toFixed(0)}%</div>
+                    </div>
+                  </div>
+                  <div style="position:relative;height:8px;background:rgba(127,127,127,0.12);border-radius:4px;overflow:hidden;display:flex;">
+                    <div style="width:${sitPct}%;background:${sitColor};transition:width 0.6s ease;"></div>
+                    <div style="width:${standPct}%;background:${standColor};transition:width 0.6s ease;"></div>
+                  </div>
+                </div>
+              `;
+            ]]]
+        styles:
+          card:
+            - min-height: 180px
+            - padding: 20px
+            - border-radius: 16px
+          grid:
+            - grid-template-areas: '"stats"'
+          custom_fields:
+            stats:
+              - width: 100%
+
+  # ---------- 24h activity chart (right half on desktop, full-width on mobile) ----------
+  - type: grid
+    column_span: 1
+    cards:
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        header:
+          show: true
+          title: 24h activity
+          show_states: false
+        apex_config:
+          chart: { height: 180px }
+          legend: { show: false }
+          stroke: { curve: stepline }
+          annotations:
+            yaxis:
+              - y: 30
+                borderColor: '#7b8a99'
+                strokeDashArray: 4
+                label:
+                  borderColor: transparent
+                  style: { color: '#7b8a99', background: transparent, fontSize: 10px }
+                  text: 30″ sit/stand line
+                  position: left
+                  offsetX: 60
+        yaxis:
+          - min: 24
+            max: 52
+            apex_config: { tickAmount: 4 }
+        series:
+          - entity: sensor.<DEVICE_PREFIX>_height
+            name: Height
+            type: area
+            stroke_width: 2
+            color: '#3a8dde'
+            opacity: 0.25
+            group_by: { func: avg, duration: 5min }
