@@ -1,0 +1,62 @@
+name: Validate ESPHome Configs
+
+on:
+  pull_request:
+    paths:
+      - '**/*.yaml'
+      - '.github/workflows/validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.yaml'
+      - '.github/workflows/validate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: esphome config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ESPHome
+        run: |
+          python -m pip install --upgrade pip
+          pip install esphome
+
+      - name: Find device YAMLs
+        id: find
+        run: |
+          # Each top-level subfolder owns its device YAMLs.
+          # Validate the canonical entrypoint per subfolder (e.g. smart-scale/smart-scale.yaml).
+          mapfile -t files < <(find . -mindepth 2 -maxdepth 2 -type f -name '*.yaml' \
+            ! -name 'secrets*.yaml' | sort)
+          printf '%s\n' "${files[@]}"
+          {
+            echo "files<<EOF"
+            printf '%s\n' "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Provide a placeholder secrets.yaml for validation
+        run: |
+          # esphome config requires secrets to resolve. Use the example values.
+          # Copy the example into every subfolder so per-device !secret references work.
+          for dir in $(find . -mindepth 1 -maxdepth 1 -type d ! -name '.*'); do
+            cp secrets.example.yaml "$dir/secrets.yaml" 2>/dev/null || true
+          done
+
+      - name: Validate each device config
+        run: |
+          set -e
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            echo "::group::esphome config $f"
+            esphome config "$f"
+            echo "::endgroup::"
+          done <<< "${{ steps.find.outputs.files }}"

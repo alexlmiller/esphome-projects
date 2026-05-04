@@ -1,0 +1,22 @@
+# Local secrets — never commit
+secrets.yaml
+**/secrets.yaml
+
+# ESPHome build artifacts
+.esphome/
+**/.esphome/
+*.bin
+*.elf
+*.map
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

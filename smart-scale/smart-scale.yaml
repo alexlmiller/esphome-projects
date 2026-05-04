@@ -1,0 +1,493 @@
+# =============================================================================
+# Smart Scale — battery-powered, two-user-aware ESPHome bathroom scale
+# =============================================================================
+# Hardware: Waveshare ESP32-S3-Mini + HX711 + 4× load cells + 2.42" SSD1309
+#           OLED + LIS3DH (motion-interrupt wake) + TPS61023 boost + 2×AAA
+#
+# Usage as an importable package:
+#   substitutions:
+#     device_id: scale-bathroom
+#     user_1_name: "Alex"
+#     user_2_name: "Sam"
+#     user_1_target_kg: "81.6"
+#     user_2_target_kg: "70.3"
+#     hx711_raw_at_zero: "-481989"     # capture during bench bring-up
+#     hx711_raw_at_known: "1339163"    # capture during bench bring-up
+#     known_weight_kg: "88.3"          # weight on a trusted scale
+#   packages:
+#     base: github://alexlmiller/esphome-projects/smart-scale/smart-scale.yaml@main
+#
+# Build sequence and full design notes: ./README.md
+# =============================================================================
+
+substitutions:
+  # --- Device identity ---
+  device_id: smart-scale
+  device_name: "Smart Scale"
+
+  # --- User profiles (override per fleet) ---
+  user_1_name: "User 1"
+  user_2_name: "User 2"
+  user_1_target_kg: "81.6"
+  user_2_target_kg: "70.3"
+
+  # --- HX711 calibration (capture during bench bring-up — see README "Calibration") ---
+  # These are the upstream Markus Ressel example values. Replace with your own.
+  hx711_raw_at_zero: "-481989"
+  hx711_raw_at_known: "1339163"
+  known_weight_kg: "88.3"
+
+  # --- Behavior thresholds ---
+  classification_window_kg: "5.0"
+  auto_tare_threshold_kg: "10.0"
+  step_off_threshold_kg: "5.0"
+
+esphome:
+  name: ${device_id}
+  friendly_name: ${device_name}
+  project:
+    name: alexlmiller.smart_scale
+    version: "0.1.0"
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "Boot — running weigh cycle"
+      - script.execute: weigh_cycle
+
+esp32:
+  board: esp32-s3-devkitc-1   # Waveshare ESP32-S3-Mini is compatible
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+  baud_rate: 0   # disable UART logging in production (battery savings)
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+api:
+  encryption:
+    key: !secret api_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5dB   # cap WiFi TX peaks at ~250 mA so the 600 mA boost holds up
+  ap:
+    ssid: ${device_name} Setup
+    password: !secret wifi_fallback_pw
+
+captive_portal:
+
+# =============================================================================
+# I²C BUS (shared by SSD1309 OLED and LIS3DH accelerometer)
+# =============================================================================
+i2c:
+  sda: GPIO3
+  scl: GPIO4
+  scan: true
+  frequency: 400kHz
+
+# =============================================================================
+# GLOBALS — per-user history, tare offset, classification state
+# =============================================================================
+globals:
+  - id: last_weight_kg_user_1
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: last_weight_kg_user_2
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: auto_tare_difference
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+  - id: stable_weight_kg
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+  - id: classified_user_idx   # 0 = unknown / 1 = user_1 / 2 = user_2
+    type: uint8_t
+    restore_value: no
+    initial_value: '0'
+
+# =============================================================================
+# CONFIGURABLE THRESHOLDS — exposed in HA, persist across deep sleep
+# =============================================================================
+number:
+  - platform: template
+    name: "Scale User 1 Target Weight"
+    id: user_1_target_weight
+    min_value: 30
+    max_value: 200
+    step: 0.1
+    unit_of_measurement: kg
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: ${user_1_target_kg}
+    icon: mdi:scale
+
+  - platform: template
+    name: "Scale User 2 Target Weight"
+    id: user_2_target_weight
+    min_value: 30
+    max_value: 200
+    step: 0.1
+    unit_of_measurement: kg
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: ${user_2_target_kg}
+    icon: mdi:scale
+
+  - platform: template
+    name: "Scale Classification Window"
+    id: classification_window
+    min_value: 1
+    max_value: 20
+    step: 0.5
+    unit_of_measurement: kg
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: ${classification_window_kg}
+    entity_category: config
+    icon: mdi:tape-measure
+
+  - platform: template
+    name: "Scale Auto Tare Threshold"
+    id: auto_tare_threshold
+    min_value: 1
+    max_value: 30
+    step: 0.5
+    unit_of_measurement: kg
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: ${auto_tare_threshold_kg}
+    entity_category: config
+    icon: mdi:scale-balance
+
+# =============================================================================
+# SENSORS
+# =============================================================================
+sensor:
+  # --- HX711 raw ADC reading (internal, not exposed to HA) ---
+  - platform: hx711
+    name: "Scale HX711 Raw"
+    id: hx711_raw
+    internal: true
+    dout_pin: GPIO1
+    clk_pin: GPIO2
+    gain: 128
+    update_interval: 100ms
+    filters:
+      - quantile:
+          window_size: 10
+          send_every: 1
+          send_first_at: 1
+          quantile: 0.9
+
+  # --- Calibrated weight (kg) — fed manually from script; not auto-updated ---
+  - platform: template
+    name: "Scale Weight"
+    id: weight_kg
+    unit_of_measurement: kg
+    accuracy_decimals: 2
+    update_interval: never
+    lambda: |-
+      // Re-derive from raw + tare every time it's asked
+      float raw = id(hx711_raw).state + id(auto_tare_difference);
+      // Two-point linear: (raw_at_zero, 0) → (raw_at_known, known_kg)
+      const float r0 = ${hx711_raw_at_zero};
+      const float r1 = ${hx711_raw_at_known};
+      const float w1 = ${known_weight_kg};
+      float weight = (raw - r0) * w1 / (r1 - r0);
+      if (weight < 0.1) return 0.0;
+      return weight;
+
+  # --- Per-user weight outputs (published when classification succeeds) ---
+  - platform: template
+    name: "Scale User 1 Weight"
+    id: user_1_weight
+    unit_of_measurement: kg
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    name: "Scale User 2 Weight"
+    id: user_2_weight
+    unit_of_measurement: kg
+    accuracy_decimals: 2
+    update_interval: never
+
+  - platform: template
+    name: "Scale Stable Weight"
+    id: stable_weight
+    unit_of_measurement: kg
+    accuracy_decimals: 2
+    update_interval: never
+
+  # --- LIS3DH (basic accel readings; motion-interrupt config below) ---
+  - platform: lis3dh
+    address: 0x18
+    range: 2g
+    update_interval: never
+    accel_x:
+      name: "Scale Accel X"
+      internal: true
+    accel_y:
+      name: "Scale Accel Y"
+      internal: true
+    accel_z:
+      name: "Scale Accel Z"
+      internal: true
+
+  # --- Battery voltage (2:1 divider on GPIO7) ---
+  - platform: adc
+    pin: GPIO7
+    name: "Scale Battery Voltage"
+    id: battery_voltage
+    update_interval: 30s
+    attenuation: 12db
+    accuracy_decimals: 2
+    unit_of_measurement: V
+    filters:
+      - multiply: 2.0
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: template
+    name: "Scale Last User"
+    id: last_user
+    update_interval: never
+
+# =============================================================================
+# WAKE PIN — LIS3DH INT1 routed to GPIO5
+# =============================================================================
+binary_sensor:
+  - platform: gpio
+    name: "Scale Wake Pin"
+    id: wake_pin
+    pin:
+      number: GPIO5
+      mode:
+        input: true
+        pulldown: true
+    internal: true
+
+# =============================================================================
+# DISPLAY — 2.42" 128×64 SSD1309 (driven via SSD1306 platform; register-compatible)
+# =============================================================================
+font:
+  - file: "gfonts://Roboto"
+    id: font_huge
+    size: 36
+  - file: "gfonts://Roboto"
+    id: font_med
+    size: 16
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 11
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    id: oled
+    update_interval: 200ms
+    pages:
+      - id: page_tare
+        lambda: |-
+          it.printf(64, 32, id(font_med), TextAlign::CENTER, "TARING...");
+
+      - id: page_step_on
+        lambda: |-
+          it.printf(64, 32, id(font_med), TextAlign::CENTER, "STEP ON");
+
+      - id: page_weighing
+        lambda: |-
+          it.printf(64, 32, id(font_huge), TextAlign::CENTER,
+                    "%.1f kg", id(weight_kg).state);
+
+      - id: page_done
+        lambda: |-
+          it.printf(64, 4, id(font_huge), TextAlign::TOP_CENTER,
+                    "%.1f", id(stable_weight_kg));
+          if (id(classified_user_idx) == 1) {
+            it.printf(64, 44, id(font_med), TextAlign::CENTER, "${user_1_name}");
+            float delta = id(stable_weight_kg) - id(last_weight_kg_user_1);
+            it.printf(64, 58, id(font_small), TextAlign::CENTER,
+                      "%+.1f kg vs last", delta);
+          } else if (id(classified_user_idx) == 2) {
+            it.printf(64, 44, id(font_med), TextAlign::CENTER, "${user_2_name}");
+            float delta = id(stable_weight_kg) - id(last_weight_kg_user_2);
+            it.printf(64, 58, id(font_small), TextAlign::CENTER,
+                      "%+.1f kg vs last", delta);
+          } else {
+            it.printf(64, 44, id(font_med), TextAlign::CENTER, "?");
+          }
+
+# =============================================================================
+# DEEP SLEEP — wake on LIS3DH motion interrupt (GPIO5 ext0)
+# =============================================================================
+deep_sleep:
+  id: sleep_mode
+  wakeup_pin: GPIO5
+  wakeup_pin_mode: KEEP_AWAKE   # latch wake event so transient interrupts don't bounce
+  run_duration: 60s             # max awake time before forced sleep (safety)
+
+# =============================================================================
+# BUTTONS — manual tare, manual sleep
+# =============================================================================
+button:
+  - platform: template
+    name: "Scale Manual Tare"
+    icon: mdi:scale-balance
+    on_press:
+      - lambda: |-
+          id(auto_tare_difference) = ${hx711_raw_at_zero} - id(hx711_raw).state;
+          ESP_LOGI("button", "Manual tare: offset=%.0f", id(auto_tare_difference));
+
+  - platform: template
+    name: "Scale Sleep Now"
+    icon: mdi:sleep
+    on_press:
+      - deep_sleep.enter: sleep_mode
+
+# =============================================================================
+# WEIGH CYCLE — runs once per wake; ends in deep_sleep.enter
+# =============================================================================
+script:
+  - id: weigh_cycle
+    mode: single
+    then:
+      # Phase 1: settle the HX711
+      - delay: 400ms
+      - component.update: hx711_raw
+      - component.update: weight_kg
+
+      # Phase 2: tare loop if scale is empty
+      - if:
+          condition:
+            lambda: 'return id(weight_kg).state < id(auto_tare_threshold).state;'
+          then:
+            - logger.log: "Empty — running auto-tare"
+            - display.page.show: page_tare
+            - delay: 1s
+            - lambda: |-
+                // 20-sample average of raw, anchor zero point
+                float sum = 0;
+                int n = 0;
+                for (int i = 0; i < 20; i++) {
+                  sum += id(hx711_raw).state;
+                  n++;
+                }
+                if (n > 0) {
+                  float avg_raw = sum / n;
+                  id(auto_tare_difference) = ${hx711_raw_at_zero} - avg_raw;
+                  ESP_LOGI("tare", "Auto-tare offset: %.0f", id(auto_tare_difference));
+                }
+            - display.page.show: page_step_on
+            - wait_until:
+                condition:
+                  lambda: 'return id(weight_kg).state > id(auto_tare_threshold).state;'
+                timeout: 30s
+
+      # Phase 3: settle to stable weight
+      - logger.log: "Settling weight"
+      - display.page.show: page_weighing
+      - lambda: |-
+          // σ < 0.2 kg over 3 s window, max 15 s overall
+          const int n = 30;
+          float buf[n] = {0};
+          int idx = 0;
+          uint32_t deadline = millis() + 15000;
+          while (millis() < deadline) {
+            buf[idx % n] = id(weight_kg).state;
+            idx++;
+            if (idx >= n) {
+              float mean = 0;
+              for (int i = 0; i < n; i++) mean += buf[i];
+              mean /= n;
+              float var = 0;
+              for (int i = 0; i < n; i++) var += (buf[i] - mean) * (buf[i] - mean);
+              float stddev = sqrt(var / n);
+              if (stddev < 0.2) {
+                id(stable_weight_kg) = mean;
+                ESP_LOGI("weigh", "Stable: %.2f kg (σ=%.3f)", mean, stddev);
+                break;
+              }
+            }
+            delay(100);
+          }
+          id(stable_weight).publish_state(id(stable_weight_kg));
+
+      # Phase 4: classify user, update last-seen, publish
+      - lambda: |-
+          float w = id(stable_weight_kg);
+          float u1 = id(user_1_target_weight).state;
+          float u2 = id(user_2_target_weight).state;
+          float win = id(classification_window).state;
+          if (fabs(w - u1) <= win) {
+            id(classified_user_idx) = 1;
+            id(user_1_weight).publish_state(w);
+            id(last_user).publish_state("${user_1_name}");
+            id(last_weight_kg_user_1) = w;
+            ESP_LOGI("classify", "${user_1_name}: %.2f kg", w);
+          } else if (fabs(w - u2) <= win) {
+            id(classified_user_idx) = 2;
+            id(user_2_weight).publish_state(w);
+            id(last_user).publish_state("${user_2_name}");
+            id(last_weight_kg_user_2) = w;
+            ESP_LOGI("classify", "${user_2_name}: %.2f kg", w);
+          } else {
+            id(classified_user_idx) = 0;
+            id(last_user).publish_state("Unknown");
+            ESP_LOGW("classify", "No match for %.2f kg (u1=%.1f, u2=%.1f, win=%.1f)",
+                     w, u1, u2, win);
+          }
+
+      # Phase 5: show final page, linger, then wait for step-off
+      - display.page.show: page_done
+      - delay: 5s
+      - wait_until:
+          condition:
+            lambda: 'return id(weight_kg).state < ${step_off_threshold_kg};'
+          timeout: 60s
+
+      # Phase 6: shutdown
+      - logger.log: "Sleeping"
+      - deep_sleep.enter: sleep_mode
+
+# =============================================================================
+# LIS3DH MOTION-INTERRUPT INIT
+# =============================================================================
+# The ESPHome lis3dh sensor doesn't expose interrupt configuration; we set the
+# registers directly on boot so the chip drives INT1 high on motion above
+# threshold. INT1 is wired to GPIO5 (ext0 wake pin).
+#
+# Register summary (from ST datasheet AN3308):
+#   CTRL_REG1 (0x20) = 0x57   — 100 Hz, low-power, X/Y/Z enabled
+#   CTRL_REG2 (0x21) = 0x09   — high-pass filter, AOI1 routed
+#   CTRL_REG3 (0x22) = 0x40   — IA1 → INT1
+#   CTRL_REG4 (0x23) = 0x00   — ±2 g, normal mode
+#   CTRL_REG5 (0x24) = 0x08   — latch INT1
+#   INT1_THS  (0x32) = 0x10   — ~250 mg threshold (tune during bench bring-up)
+#   INT1_DUR  (0x33) = 0x00   — fire immediately
+#   INT1_CFG  (0x30) = 0x2A   — OR of high events on X/Y/Z
+#
+# TODO during bench bring-up:
+#   - Verify INT1 polarity (CTRL_REG6 bit 1) matches ESP32 ext0 expectation
+#   - Tune INT1_THS for "step on" sensitivity (lower = more sensitive)
+#   - Confirm latched interrupt clears correctly when reading INT1_SRC (0x31)
+# =============================================================================
+
+# (LIS3DH register init via i2c.write actions will be added once the board is
+# on the bench and we can verify the exact behavior. For now the LIS3DH
+# returns accel readings, GPIO5 ext0 wake works on any rising edge.)
