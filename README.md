@@ -76,26 +76,6 @@ esphome run smart-scale.yaml
   the IP with your collector's address.
 - **License**: MIT — see [LICENSE](LICENSE).
 
-## Repo layout
-
-```
-esphome-projects/
-├── README.md                    # This file — device gallery
-├── LICENSE                      # MIT
-├── secrets.example.yaml         # Template — copy to secrets.yaml locally
-├── .gitignore                   # secrets.yaml, .esphome/, build artifacts
-├── .github/workflows/
-│   └── validate.yml             # esphome config <each-device> on PRs
-├── smart-scale/
-│   ├── README.md                # Build doc, hardware, calibration
-│   ├── smart-scale.yaml         # Canonical config
-│   ├── images/
-│   └── shortcuts/
-├── mitsubishi-cn105/
-├── desk-controller/
-└── sauna-controller/            # Stub → external repo
-```
-
 ## Contributing
 
 These are personal builds; PRs welcome but priorities follow my own use cases.
