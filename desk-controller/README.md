@@ -94,11 +94,22 @@ the dashboard view shown above.
 
 ### Dashboard view
 
+Two variants are available — pick one. Both cover the same ground (current
+height, presets, controls, sit/stand stats, 24h chart); the difference is
+how the hero card looks.
+
+| File | Hero | When to pick |
+|---|---|---|
+| [`ha-config/dashboard.yaml`](ha-config/dashboard.yaml) | Vertical bar gauge with current-height number alongside | Compact, technical, low-key. Reads cleanly at any size. |
+| [`ha-config/dashboard-illustrated.yaml`](ha-config/dashboard-illustrated.yaml) | Rendered front-view illustration of the desk (white legs + birch top) that physically rises and lowers in real time | More striking; better for sharing. Slightly taller card. |
+
+To install either:
+
 1. Confirm you have these HACS cards installed: **button-card**, **mushroom**,
    **apexcharts-card**.
 2. Open the dashboard you want to add the view to → Edit → 3-dot menu → **Raw
    configuration editor**.
-3. Open [`ha-config/dashboard.yaml`](ha-config/dashboard.yaml).
+3. Open the variant you picked.
 4. **Find-and-replace `<DEVICE_PREFIX>`** with your device's actual entity-id
    prefix. e.g. if `device_id: standing-desk-office`, the prefix is
    `standing_desk_office`.
