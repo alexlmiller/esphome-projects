@@ -141,26 +141,26 @@ sections:
                                style="opacity:${shadowOpacity};transition:opacity 0.7s ease;" />
 
                       <!-- Foot bases (stationary) -->
-                      <rect x="120" y="226" width="90" height="14" rx="3" fill="url(#footGrad)" />
-                      <rect x="270" y="226" width="90" height="14" rx="3" fill="url(#footGrad)" />
+                      <rect x="100" y="226" width="90" height="14" rx="3" fill="url(#footGrad)" />
+                      <rect x="290" y="226" width="90" height="14" rx="3" fill="url(#footGrad)" />
                       <!-- Subtle contact shadow under each foot -->
-                      <ellipse cx="165" cy="241" rx="48" ry="2.5" fill="rgba(0,0,0,0.18)" />
-                      <ellipse cx="315" cy="241" rx="48" ry="2.5" fill="rgba(0,0,0,0.18)" />
+                      <ellipse cx="145" cy="241" rx="48" ry="2.5" fill="rgba(0,0,0,0.18)" />
+                      <ellipse cx="335" cy="241" rx="48" ry="2.5" fill="rgba(0,0,0,0.18)" />
 
                       <!-- Lower leg sections (stationary) -->
-                      <rect x="149" y="156" width="32" height="70" rx="2.5" fill="url(#legGrad)" />
-                      <rect x="299" y="156" width="32" height="70" rx="2.5" fill="url(#legGrad)" />
+                      <rect x="129" y="156" width="32" height="70" rx="2.5" fill="url(#legGrad)" />
+                      <rect x="319" y="156" width="32" height="70" rx="2.5" fill="url(#legGrad)" />
                       <!-- Lower leg highlight (top-edge bevel) -->
-                      <rect x="149" y="156" width="32" height="1" fill="rgba(255,255,255,0.5)" />
-                      <rect x="299" y="156" width="32" height="1" fill="rgba(255,255,255,0.5)" />
+                      <rect x="129" y="156" width="32" height="1" fill="rgba(255,255,255,0.5)" />
+                      <rect x="319" y="156" width="32" height="1" fill="rgba(255,255,255,0.5)" />
 
                       <!-- Upper leg sections — telescope by scaleY, anchored at bottom -->
-                      <rect x="153" y="66" width="24" height="90" rx="2"
+                      <rect x="133" y="66" width="24" height="90" rx="2"
                             fill="url(#legGrad)"
-                            style="transform-origin:165px 156px;transform:scaleY(${legScale});transition:transform 0.7s ${ease};" />
-                      <rect x="303" y="66" width="24" height="90" rx="2"
+                            style="transform-origin:145px 156px;transform:scaleY(${legScale});transition:transform 0.7s ${ease};" />
+                      <rect x="323" y="66" width="24" height="90" rx="2"
                             fill="url(#legGrad)"
-                            style="transform-origin:315px 156px;transform:scaleY(${legScale});transition:transform 0.7s ${ease};" />
+                            style="transform-origin:335px 156px;transform:scaleY(${legScale});transition:transform 0.7s ${ease};" />
 
                       <!-- Tabletop group — translates up by rise px -->
                       <g style="transform:translateY(${-rise}px);transition:transform 0.7s ${ease};">
