@@ -1,0 +1,38 @@
+######## Sit / Stand Tracker for the Standing Desk ########
+# Derives a binary "standing" state from the desk's height, then tracks
+# daily totals via history_stats. Threshold defaults to 30 inches.
+#
+# Install: drop this file into /config/packages/ on your HA host. Make
+# sure configuration.yaml has `homeassistant: { packages: !include_dir_named packages }`,
+# then RESTART Home Assistant (history_stats is a legacy YAML platform
+# that doesn't pick up via reload).
+#
+# Entity-id prefix: edit the three `sensor.alex_office_desk_height`
+# references below to match your device's prefix.
+
+template:
+  - binary_sensor:
+      - name: "Standing Desk Standing"
+        unique_id: standing_desk_standing
+        device_class: occupancy
+        availability: "{{ states('sensor.alex_office_desk_height') not in ['unknown', 'unavailable', 'none'] }}"
+        state: "{{ states('sensor.alex_office_desk_height') | float(0) > 30 }}"
+
+sensor:
+  - platform: history_stats
+    name: Standing Desk Standing Today
+    unique_id: standing_desk_standing_today
+    entity_id: binary_sensor.standing_desk_standing
+    state: "on"
+    type: time
+    start: "{{ today_at() }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: Standing Desk Sitting Today
+    unique_id: standing_desk_sitting_today
+    entity_id: binary_sensor.standing_desk_standing
+    state: "off"
+    type: time
+    start: "{{ today_at() }}"
+    end: "{{ now() }}"
