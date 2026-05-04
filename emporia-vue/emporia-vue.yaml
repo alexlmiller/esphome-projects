@@ -1,24 +1,25 @@
 # =============================================================================
-# Emporia Vue (16-channel whole-home energy monitor)
+# Emporia Vue (16-channel whole-home energy monitor) — base package
 # =============================================================================
-# Provides everything except the per-instance circuit list. Wraps the
-# emporia-vue-local/esphome external component with production wiring,
-# both phases (A and B), main panel CT clamps, RTTTL buzzer, status LED,
-# diagnostic WiFi/uptime sensors, and optional remote syslog.
+# Provides ESP32 boilerplate (esphome, esp32, framework, OTA, API, WiFi),
+# I²C bus, RTTTL buzzer, status LED, and diagnostic sensors. Wraps the
+# emporia-vue-local/esphome external component but does NOT declare the
+# emporia_vue sensor itself — that lives in the wrapper because every
+# install has different phases + CT clamps wired.
 #
-# Wrappers are responsible for declaring their own ct_clamps for the
-# circuits they have wired (1..16), plus the corresponding copy sensors
-# and total_daily_energy blocks. See README for a per-circuit template.
+# This split is intentional: ESPHome's package merging would create two
+# conflicting emporia_vue sensor instances if we declared one here and
+# the wrapper added another. Keeping the sensor in the wrapper is the
+# only way to avoid that.
 #
 # Usage as an importable package:
 #   substitutions:
-#     tech_name: emporia-vue-house-external
-#     display_name: "Emporia Vue - House External"
+#     tech_name: emporia-vue-house
+#     display_name: "Emporia Vue - House"
 #   packages:
 #     base: github://alexlmiller/esphome-projects/emporia-vue/emporia-vue.yaml@main
 #
-#   # Wrapper extends the sensor block with its own ct_clamps + copy sensors
-#   # for each connected circuit. See README.
+#   # Wrapper provides the emporia_vue sensor block. See README "Wrapper template".
 #
 # Required substitutions:
 #   tech_name     — hostname (lowercase, hyphen-separated, ≤31 chars)
@@ -26,7 +27,7 @@
 #
 # Optional substitutions:
 #   syslog_host   — UDP syslog target (override + add syslog block in wrapper)
-#   timezone      — IANA TZ for the SNTP time component (default America/Denver)
+#   timezone      — IANA TZ for the SNTP time component
 # =============================================================================
 
 substitutions:
@@ -57,7 +58,7 @@ logger:
     sensor: WARN
     emporia_vue: INFO
 
-# Time source — required by the syslog component when consumers add it
+# Time source — required by syslog when consumers add it.
 time:
   - platform: sntp
     id: my_time
@@ -105,7 +106,8 @@ external_components:
       - emporia_vue
     refresh: 1d
 
-# I²C bus — Emporia Vue's PCB exposes the energy-monitor IC over I²C
+# I²C bus — Emporia Vue's PCB exposes the energy-monitor IC over I²C.
+# The wrapper's emporia_vue sensor must reference `i2c_id: i2c_a`.
 i2c:
   sda: 21
   scl: 22
@@ -151,27 +153,9 @@ light:
     entity_category: diagnostic
 
 # =============================================================================
-# Shared filter chains — wrappers reference these via `*throttle_avg` etc.
+# Diagnostic sensors (everything except the emporia_vue sensor itself)
 # =============================================================================
-.default_filters:
-  - &throttle_avg
-    # Average all raw readings over 5 seconds
-    throttle_average: 5s
-  - &throttle_time
-    # Send updates every 60 seconds
-    throttle: 60s
-  - &invert_positive
-    # Invert and ensure positive values
-    lambda: 'return max(-x, 0.0f);'
-  - &positive_only
-    # Filter out negative values
-    lambda: 'return max(x, 0.0f);'
-  - &absolute_value
-    # Take absolute value
-    lambda: 'return abs(x);'
-
 sensor:
-  # WiFi signal strength
   - platform: wifi_signal
     name: "WiFi Signal"
     update_interval: 60s
@@ -181,85 +165,6 @@ sensor:
     name: "Uptime"
     update_interval: 60s
     entity_category: diagnostic
-
-  # Phase A and Phase B — the two service legs feeding the panel.
-  # Their voltage/frequency/phase-angle sensors are always present,
-  # since they apply to the whole device regardless of which circuits
-  # are wired. CT clamps for individual circuits live in the wrapper.
-  - platform: emporia_vue
-    i2c_id: i2c_a
-    phases:
-      - id: phase_a
-        input: BLACK
-        calibration: 0.022
-        voltage:
-          name: "Panel Phase A Voltage"
-          device_class: voltage
-          state_class: measurement
-          unit_of_measurement: "V"
-          accuracy_decimals: 1
-          filters: [*throttle_avg, *positive_only]
-        frequency:
-          name: "Panel Phase A Frequency"
-          device_class: frequency
-          state_class: measurement
-          unit_of_measurement: "Hz"
-          accuracy_decimals: 1
-          filters: [*throttle_avg, *positive_only]
-      - id: phase_b
-        input: RED
-        calibration: 0.022
-        voltage:
-          name: "Panel Phase B Voltage"
-          device_class: voltage
-          state_class: measurement
-          unit_of_measurement: "V"
-          accuracy_decimals: 1
-          filters: [*throttle_avg, *positive_only]
-        phase_angle:
-          name: "Panel Phase B Phase Angle"
-          state_class: measurement
-          unit_of_measurement: "°"
-          accuracy_decimals: 1
-          filters: [*throttle_avg, *positive_only]
-    ct_clamps:
-      # Main panel power CTs — the big ones that clip around the service mains.
-      # Per-circuit ct_clamps belong in the wrapper.
-      - phase_id: phase_a
-        input: "A"
-        power:
-          id: phase_a_power
-          device_class: power
-          state_class: measurement
-          unit_of_measurement: "W"
-          filters: [*invert_positive]
-      - phase_id: phase_b
-        input: "B"
-        power:
-          id: phase_b_power
-          device_class: power
-          state_class: measurement
-          unit_of_measurement: "W"
-          filters: [*invert_positive]
-
-  # Copy sensors for the panel-wide power readings (smoothed)
-  - platform: copy
-    name: "Panel Phase A Power"
-    source_id: phase_a_power
-    device_class: power
-    state_class: measurement
-    unit_of_measurement: "W"
-    accuracy_decimals: 1
-    filters: [*throttle_avg]
-
-  - platform: copy
-    name: "Panel Phase B Power"
-    source_id: phase_b_power
-    device_class: power
-    state_class: measurement
-    unit_of_measurement: "W"
-    accuracy_decimals: 1
-    filters: [*throttle_avg]
 
 text_sensor:
   - platform: wifi_info
