@@ -1,0 +1,192 @@
+# =============================================================================
+# Mitsubishi CN105 Mini-Split Controller
+# =============================================================================
+# Native ESPHome control of Mitsubishi indoor units via the CN105 service
+# port. Built on top of the echavet/MitsubishiCN105ESPHome external component
+# — this package adds the production wiring around it (UART pinout for the
+# M5Stack NanoC6, climate config, ISEE/sub-mode/stage sensors, optional
+# remote-temperature service for room-sensor feedback).
+#
+# Hardware: M5Stack NanoC6 (ESP32-C6) powered from the indoor unit's 5V via
+# the CN105 5-pin connector. Grove-port UART:
+#   GPIO1 (TX) → CN105 pin 5 (indoor RX)
+#   GPIO2 (RX) ← CN105 pin 2 (indoor TX)
+# CN105 idles high; G2 is also a C6 boot-strap pin but a high-idle UART line
+# does not block boot.
+#
+# Usage as an importable package:
+#   substitutions:
+#     tech_name: mitsubishi-living-room
+#     display_name: "Living Room Mini Split"
+#   packages:
+#     base: github://alexlmiller/esphome-projects/mitsubishi-cn105/mitsubishi-cn105.yaml@main
+#
+# Required substitutions:
+#   tech_name     — hostname (lowercase, hyphen-separated, ≤31 chars)
+#   display_name  — human-readable friendly name
+#
+# Optional substitutions (see defaults below):
+#   syslog_host   — UDP syslog target (set to "" to disable wrapping in syslog)
+# =============================================================================
+
+substitutions:
+  tech_name: mitsubishi
+  display_name: "Mitsubishi Mini Split"
+  # Override syslog_host in your wrapper to enable remote logging.
+  # Leave at "127.0.0.1" (or omit syslog block in wrapper) if not using.
+  syslog_host: "127.0.0.1"
+
+esphome:
+  name: ${tech_name}
+  friendly_name: ${display_name}
+  name_add_mac_suffix: false
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+# Logger to network only — UART logger would conflict with HP_UART even
+# though it's on a different bus, and there's no USB on NanoC6 in the
+# production wiring.
+logger:
+  level: INFO
+  baud_rate: 0
+  logs:
+    CN105Climate: WARN
+    CN105: INFO
+    WIFI: INFO
+    component: WARN
+
+# Time source — required by syslog when consumers add it. SNTP works
+# without HA dependency; wrappers can override with platform: homeassistant
+# if HA-time is preferred.
+time:
+  - platform: sntp
+    id: sntp_time
+
+api:
+  encryption:
+    key: !secret api_key
+  services:
+    # Feed an external room temperature (e.g. an Apollo R Pro mmWave
+    # sensor in the same room) so the indoor unit regulates to the
+    # actual room temp instead of its own air-return reading.
+    - service: set_remote_temperature
+      variables:
+        temperature: float
+      then:
+        - lambda: 'id(hp).set_remote_temperature(temperature);'
+    - service: use_internal_temperature
+      then:
+        - lambda: 'id(hp).set_remote_temperature(0);'
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Fallback AP — SSID must be ≤32 chars, so use tech_name not display_name.
+  ap:
+    ssid: ${tech_name}-ap
+    password: !secret wifi_fallback_pw
+  power_save_mode: none
+  fast_connect: true
+
+captive_portal:
+
+web_server:
+  port: 80
+
+external_components:
+  # Pinned to a release tag — the cn105 climate component exposes some
+  # internal-looking members (e.g. isUARTConnected_) that would silently
+  # break on upstream main if the author renamed them. Bump deliberately.
+  - source: github://echavet/MitsubishiCN105ESPHome@v1.6.7
+
+uart:
+  id: HP_UART
+  baud_rate: 2400
+  tx_pin: GPIO1
+  rx_pin: GPIO2
+
+climate:
+  - platform: cn105
+    name: ${display_name}
+    id: hp
+    update_interval: 2500ms
+    debounce_delay: 120ms
+    # Stop honoring set_remote_temperature 30 min after last update —
+    # falls back to the indoor unit's own sensor if the remote source
+    # goes offline.
+    remote_temperature_timeout: 30min
+    compressor_frequency_sensor:
+      name: Compressor Frequency
+    vertical_vane_select:
+      name: Vertical Vane
+    horizontal_vane_select:
+      name: Horizontal Vane
+    isee_sensor:
+      name: ISEE Motion
+    auto_sub_mode_sensor:
+      name: Auto Sub-Mode
+    sub_mode_sensor:
+      name: Sub-Mode
+    stage_sensor:
+      name: Stage
+    air_purifier_switch:
+      name: Air Purifier
+    night_mode_switch:
+      name: Night Mode
+    # outside_air_temperature_sensor, input_power_sensor, kwh_sensor
+    # are intentionally omitted — MSZ-EF outdoor units do not report
+    # these values over CN105.
+    hp_uptime_connection_sensor:
+      name: HP Uptime
+      update_interval: 60s
+    visual:
+      min_temperature: 16
+      max_temperature: 31
+      temperature_step:
+        target_temperature: 1
+        current_temperature: 0.1
+    supports:
+      mode: [HEAT_COOL, COOL, HEAT, FAN_ONLY, DRY]
+      # MIDDLE (not MEDIUM) — the cn105 component reports the mid-tier
+      # Mitsubishi fan speed as HA's FAN_MIDDLE constant.
+      fan_mode: [AUTO, QUIET, LOW, MIDDLE, HIGH]
+      swing_mode: ["OFF", VERTICAL, HORIZONTAL, BOTH]
+
+text_sensor:
+  - platform: version
+    name: ESPHome Version
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+    ssid:
+      name: WiFi SSID
+    bssid:
+      name: WiFi BSSID
+
+sensor:
+  - platform: uptime
+    name: Uptime
+  - platform: wifi_signal
+    name: WiFi Signal
+    update_interval: 60s
+
+binary_sensor:
+  # Diagnostic: is the heat-pump UART link healthy?
+  - platform: template
+    name: HP UART Connected
+    device_class: connectivity
+    entity_category: DIAGNOSTIC
+    lambda: 'return id(hp).isUARTConnected_;'
+
+button:
+  - platform: restart
+    name: Restart

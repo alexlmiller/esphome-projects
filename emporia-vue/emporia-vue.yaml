@@ -1,0 +1,271 @@
+# =============================================================================
+# Emporia Vue (16-channel whole-home energy monitor)
+# =============================================================================
+# Provides everything except the per-instance circuit list. Wraps the
+# emporia-vue-local/esphome external component with production wiring,
+# both phases (A and B), main panel CT clamps, RTTTL buzzer, status LED,
+# diagnostic WiFi/uptime sensors, and optional remote syslog.
+#
+# Wrappers are responsible for declaring their own ct_clamps for the
+# circuits they have wired (1..16), plus the corresponding copy sensors
+# and total_daily_energy blocks. See README for a per-circuit template.
+#
+# Usage as an importable package:
+#   substitutions:
+#     tech_name: emporia-vue-house-external
+#     display_name: "Emporia Vue - House External"
+#   packages:
+#     base: github://alexlmiller/esphome-projects/emporia-vue/emporia-vue.yaml@main
+#
+#   # Wrapper extends the sensor block with its own ct_clamps + copy sensors
+#   # for each connected circuit. See README.
+#
+# Required substitutions:
+#   tech_name     — hostname (lowercase, hyphen-separated, ≤31 chars)
+#   display_name  — human-readable friendly name
+#
+# Optional substitutions:
+#   syslog_host   — UDP syslog target (override + add syslog block in wrapper)
+#   timezone      — IANA TZ for the SNTP time component (default America/Denver)
+# =============================================================================
+
+substitutions:
+  tech_name: emporia-vue
+  display_name: "Emporia Vue"
+  syslog_host: "127.0.0.1"
+  timezone: "America/Denver"
+
+esphome:
+  name: ${tech_name}
+  friendly_name: ${display_name}
+  platformio_options:
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_FREERTOS_UNICORE: "false"
+      CONFIG_ESP32_DEFAULT_CPU_FREQ_240: "true"
+
+logger:
+  level: INFO
+  baud_rate: 0   # disable UART logger (frees ESP for the I²C bus)
+  logs:
+    sensor: WARN
+    emporia_vue: INFO
+
+# Time source — required by the syslog component when consumers add it
+time:
+  - platform: sntp
+    id: my_time
+    timezone: ${timezone}
+
+# Persist energy totals more frequently than ESPHome's default (15 min)
+# so a power outage doesn't lose more than a few hours of accumulated kWh.
+preferences:
+  flash_write_interval: 6h
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+api:
+  encryption:
+    key: !secret api_key
+  services:
+    # Built-in RTTTL service — useful for HA automations that beep on events
+    - service: play_rtttl
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda 'return song_str;'
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+  fast_connect: true
+  ap:
+    ssid: ${display_name}_AP
+    password: !secret wifi_fallback_pw
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 3
+
+external_components:
+  - source: github://emporia-vue-local/esphome@dev
+    components:
+      - emporia_vue
+    refresh: 1d
+
+# I²C bus — Emporia Vue's PCB exposes the energy-monitor IC over I²C
+i2c:
+  sda: 21
+  scl: 22
+  scan: false
+  frequency: 400kHz
+  timeout: 10ms
+  id: i2c_a
+
+# RTTTL buzzer — Emporia Vue PCB has an onboard piezo
+output:
+  - platform: ledc
+    pin: GPIO12
+    id: buzzer
+    frequency: 2000Hz
+  - platform: gpio
+    pin: GPIO27
+    id: buzzer_gnd
+
+rtttl:
+  output: buzzer
+  on_finished_playback:
+    - logger.log: 'Song ended'
+
+button:
+  - platform: template
+    name: "Two Beeps"
+    icon: "mdi:bell"
+    on_press:
+      - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+
+  - platform: restart
+    name: "Restart"
+    icon: "mdi:restart"
+    entity_category: diagnostic
+
+light:
+  - platform: status_led
+    name: "Status LED"
+    pin:
+      number: 23
+      inverted: false
+    restore_mode: ALWAYS_ON
+    entity_category: diagnostic
+
+# =============================================================================
+# Shared filter chains — wrappers reference these via `*throttle_avg` etc.
+# =============================================================================
+.default_filters:
+  - &throttle_avg
+    # Average all raw readings over 5 seconds
+    throttle_average: 5s
+  - &throttle_time
+    # Send updates every 60 seconds
+    throttle: 60s
+  - &invert_positive
+    # Invert and ensure positive values
+    lambda: 'return max(-x, 0.0f);'
+  - &positive_only
+    # Filter out negative values
+    lambda: 'return max(x, 0.0f);'
+  - &absolute_value
+    # Take absolute value
+    lambda: 'return abs(x);'
+
+sensor:
+  # WiFi signal strength
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  # Phase A and Phase B — the two service legs feeding the panel.
+  # Their voltage/frequency/phase-angle sensors are always present,
+  # since they apply to the whole device regardless of which circuits
+  # are wired. CT clamps for individual circuits live in the wrapper.
+  - platform: emporia_vue
+    i2c_id: i2c_a
+    phases:
+      - id: phase_a
+        input: BLACK
+        calibration: 0.022
+        voltage:
+          name: "Panel Phase A Voltage"
+          device_class: voltage
+          state_class: measurement
+          unit_of_measurement: "V"
+          accuracy_decimals: 1
+          filters: [*throttle_avg, *positive_only]
+        frequency:
+          name: "Panel Phase A Frequency"
+          device_class: frequency
+          state_class: measurement
+          unit_of_measurement: "Hz"
+          accuracy_decimals: 1
+          filters: [*throttle_avg, *positive_only]
+      - id: phase_b
+        input: RED
+        calibration: 0.022
+        voltage:
+          name: "Panel Phase B Voltage"
+          device_class: voltage
+          state_class: measurement
+          unit_of_measurement: "V"
+          accuracy_decimals: 1
+          filters: [*throttle_avg, *positive_only]
+        phase_angle:
+          name: "Panel Phase B Phase Angle"
+          state_class: measurement
+          unit_of_measurement: "°"
+          accuracy_decimals: 1
+          filters: [*throttle_avg, *positive_only]
+    ct_clamps:
+      # Main panel power CTs — the big ones that clip around the service mains.
+      # Per-circuit ct_clamps belong in the wrapper.
+      - phase_id: phase_a
+        input: "A"
+        power:
+          id: phase_a_power
+          device_class: power
+          state_class: measurement
+          unit_of_measurement: "W"
+          filters: [*invert_positive]
+      - phase_id: phase_b
+        input: "B"
+        power:
+          id: phase_b_power
+          device_class: power
+          state_class: measurement
+          unit_of_measurement: "W"
+          filters: [*invert_positive]
+
+  # Copy sensors for the panel-wide power readings (smoothed)
+  - platform: copy
+    name: "Panel Phase A Power"
+    source_id: phase_a_power
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 1
+    filters: [*throttle_avg]
+
+  - platform: copy
+    name: "Panel Phase B Power"
+    source_id: phase_b_power
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 1
+    filters: [*throttle_avg]
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: diagnostic
+    mac_address:
+      name: "MAC Address"
+      entity_category: diagnostic
