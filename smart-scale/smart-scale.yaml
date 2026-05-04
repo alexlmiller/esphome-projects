@@ -233,20 +233,12 @@ sensor:
     accuracy_decimals: 2
     update_interval: never
 
-  # --- LIS3DH (basic accel readings; motion-interrupt config below) ---
-  - platform: lis3dh
-    address: 0x18
-    range: 2g
-    update_interval: never
-    accel_x:
-      name: "Scale Accel X"
-      internal: true
-    accel_y:
-      name: "Scale Accel Y"
-      internal: true
-    accel_z:
-      name: "Scale Accel Z"
-      internal: true
+  # NOTE: LIS3DH is configured at boot via direct I²C register writes (see
+  # the LIS3DH MOTION-INTERRUPT INIT section at the bottom of the file).
+  # We don't use the community lis3dh sensor component because we only need
+  # the chip to drive its INT1 pin on motion — accelerometer readings are
+  # not needed for the wake function. Diagnostic accel readings can be added
+  # later via an external_components reference if useful.
 
   # --- Battery voltage (2:1 divider on GPIO7) ---
   - platform: adc
