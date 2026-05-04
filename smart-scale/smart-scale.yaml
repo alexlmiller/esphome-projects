@@ -265,22 +265,10 @@ text_sensor:
     update_interval: never
 
 # =============================================================================
-# WAKE PIN — LIS3DH INT1 routed to GPIO5
-# =============================================================================
-binary_sensor:
-  - platform: gpio
-    name: "Scale Wake Pin"
-    id: wake_pin
-    pin:
-      number: GPIO5
-      mode:
-        input: true
-        pulldown: true
-    internal: true
-
-# =============================================================================
 # DISPLAY — 2.42" 128×64 SSD1309 (driven via SSD1306 platform; register-compatible)
 # =============================================================================
+# Note: GPIO5 (LIS3DH INT1) is owned exclusively by the deep_sleep component
+# below as the ext0 wake pin — no separate binary_sensor block needed.
 font:
   - file: "gfonts://Roboto"
     id: font_huge
