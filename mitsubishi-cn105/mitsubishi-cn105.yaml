@@ -179,14 +179,6 @@ sensor:
     name: WiFi Signal
     update_interval: 60s
 
-binary_sensor:
-  # Diagnostic: is the heat-pump UART link healthy?
-  - platform: template
-    name: HP UART Connected
-    device_class: connectivity
-    entity_category: DIAGNOSTIC
-    lambda: 'return id(hp).isUARTConnected_;'
-
 button:
   - platform: restart
     name: Restart
