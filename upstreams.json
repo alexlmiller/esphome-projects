@@ -1,0 +1,17 @@
+{
+  "packages": [
+    {
+      "name": "desk-controller",
+      "path": "desk-controller",
+      "upstreamRepo": "SmartHomeGuys/DeskUp-Pro-Controller-RJ12",
+      "source": "github-releases",
+      "reviewedRef": "v2026.5.0",
+      "policy": "review-and-port",
+      "localPatches": [
+        "wrapper-friendly substitutions",
+        "inch-native Home Assistant entities and wire-boundary conversions",
+        "Rocka string-comparison fix"
+      ]
+    }
+  ]
+}
