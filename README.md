@@ -74,6 +74,10 @@ esphome run smart-scale.yaml
 - **Secrets**: `!secret` references everything. Never inline a key.
 - **Logging**: devices that need centralized logs have a syslog block; replace
   the IP with your collector's address.
+- **Adapted upstreams**: packages derived from community firmware record their
+  reviewed upstream baseline in [`upstreams.json`](upstreams.json). The
+  scheduled upstream watcher opens an issue when a source project publishes a
+  newer release, so the porting review happens next to the package code.
 - **License**: MIT — see [LICENSE](LICENSE).
 
 ## Contributing

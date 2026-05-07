@@ -3,6 +3,7 @@
 # (Jarvis-clone, DeskUp Pro, Rocka, etc.) electric standing desks.
 # =============================================================================
 # Builds on the protocol work of github.com/smarthomeguys/DeskUp-Pro-Controller-RJ12.
+# Last reviewed upstream release: v2026.5.0.
 # Their UART encode/decode lambdas, idle timer, M1-M4 preset round-trip,
 # height slider, and Default/Rocka command variants are preserved verbatim
 # (with two patches: a string-comparison fix for the "Rocka" branch, and
@@ -60,6 +61,8 @@ substitutions:
   # Override per desk.
   desk_min_height: "25.2"
   desk_max_height: "50.8"
+  desk_config_min_height: "22.0"
+  desk_config_max_height: "54.0"
 
   # --- Hardware (override for different boards) ---
   board: esp32-s3-devkitc-1
@@ -72,7 +75,7 @@ esphome:
   friendly_name: ${device_name}
   project:
     name: alexlmiller.desk_controller
-    version: "1.0.0"
+    version: "1.1.0"
   on_boot:
     priority: 200
     then:
@@ -140,7 +143,47 @@ uart:
                 if (bytes[0] == 0xF2 && bytes[1] == 0xF2 && bytes[7] == 0x7E)
                 {
                   uint8_t command = bytes[2];
-                  double height_in = ((bytes[4] * 256) + bytes[5]) / 10.0;
+                  double raw_height = ((bytes[4] * 256) + bytes[5]);
+                  double height_in = raw_height / 10.0;
+
+                  std::string deskControlCodeVariant = "Default";
+                  if (id(select_desk_control_code_variant).has_state()) {
+                    deskControlCodeVariant = id(select_desk_control_code_variant).current_option();
+                  }
+
+                  // Fully Jarvis/Jiecang reports memory presets as motor step
+                  // counts. After calibration, convert those counts back into
+                  // inch-native preset heights before publishing M1-M4 sensors.
+                  if (deskControlCodeVariant == "Fully Jarvis") {
+                    if (id(bool_desk_calibration_started)) {
+                      if (command == 0x25) {
+                        id(min_motor_steps) = raw_height;
+                        id(min_physical_height) = id(number_deskMinHeight).state;
+                        ESP_LOGI("custom", "Fully Jarvis calibration min: steps=%f height=%f in", id(min_motor_steps), id(min_physical_height));
+                      }
+                      else if (command == 0x28) {
+                        id(max_motor_steps) = raw_height;
+                        id(max_physical_height) = id(number_deskMaxHeight).state;
+                        ESP_LOGI("custom", "Fully Jarvis calibration max: steps=%f height=%f in", id(max_motor_steps), id(max_physical_height));
+                      }
+
+                      if (id(min_motor_steps) > 0 && id(max_motor_steps) > id(min_motor_steps) &&
+                          id(max_physical_height) > id(min_physical_height)) {
+                        id(bool_desk_calibration_started) = false;
+                        ESP_LOGI("custom", "Fully Jarvis calibration complete");
+                      }
+                    }
+
+                    double step_travel = id(max_motor_steps) - id(min_motor_steps);
+                    double height_travel = id(max_physical_height) - id(min_physical_height);
+                    if (step_travel > 0 && height_travel > 0) {
+                      double counts_per_in = step_travel / height_travel;
+                      height_in = ((raw_height - id(min_motor_steps)) / counts_per_in) + id(min_physical_height);
+                      ESP_LOGD("custom", "Fully Jarvis preset conversion: raw=%f counts_per_in=%f height=%f in", raw_height, counts_per_in, height_in);
+                    } else {
+                      ESP_LOGW("custom", "Fully Jarvis preset conversion skipped until calibration is complete");
+                    }
+                  }
 
                   // Mapping note: the sender uses 0x25/0x26 for setm3/setm4
                   // but the desk responds with 0x27/0x28 to confirm those
@@ -156,6 +199,15 @@ uart:
                     id(sensor_deskm3).publish_state(height_in);
                   else if(command == 0x28)
                     id(sensor_deskm4).publish_state(height_in);
+                }
+              }
+              else if (bytes.size() == 10)
+              {
+                if (bytes[0] == 0xF2 && bytes[1] == 0xF2 && bytes[9] == 0x7E)
+                {
+                  double min_height_in = ((bytes[6] * 256) + bytes[7]) / 10.0;
+                  double max_height_in = ((bytes[4] * 256) + bytes[5]) / 10.0;
+                  ESP_LOGI("custom", "Desk physical min/max height: min=%f in max=%f in", min_height_in, max_height_in);
                 }
               }
             }
@@ -187,6 +239,31 @@ globals:
   - id: seconds_idle_counter
     type: long
     restore_value: no
+    initial_value: "0"
+
+  - id: bool_desk_calibration_started
+    type: bool
+    restore_value: no
+    initial_value: "false"
+
+  - id: min_motor_steps
+    type: double
+    restore_value: yes
+    initial_value: "0"
+
+  - id: max_motor_steps
+    type: double
+    restore_value: yes
+    initial_value: "0"
+
+  - id: min_physical_height
+    type: double
+    restore_value: yes
+    initial_value: "0"
+
+  - id: max_physical_height
+    type: double
+    restore_value: yes
     initial_value: "0"
 
 # --------------------------------------------------------------------------
@@ -271,6 +348,10 @@ script:
               return { 0xf1, 0xf1, 0x2B, 0x00, 0x2B, 0x7e };
             else if (cmd == "getheight")
               return { 0xf1, 0xf1, 0x07, 0x00, 0x07, 0x7e };
+            else if (cmd == "getAllHeightSettings")
+              return { 0xf1, 0xf1, 0x07, 0x00, 0x07, 0x7e };
+            else if (cmd == "getPhysicalDeskLimits")
+              return { 0xf1, 0xf1, 0x0C, 0x00, 0x0C, 0x7e };
             else
               return {};
       - logger.log: "Move desk command finished"
@@ -627,6 +708,34 @@ button:
     name: "Restart"
     entity_category: diagnostic
 
+  - platform: template
+    name: "Calibrate Fully Jarvis"
+    id: button_calibrate_fully_jarvis
+    icon: mdi:tape-measure
+    entity_category: config
+    disabled_by_default: false
+    on_press:
+      - lambda: |-
+          id(bool_desk_calibration_started) = true;
+          id(min_motor_steps) = 0;
+          id(max_motor_steps) = 0;
+          id(min_physical_height) = id(number_deskMinHeight).state;
+          id(max_physical_height) = id(number_deskMaxHeight).state;
+      - script.execute:
+          id: script_send_desk_command
+          cmd: getAllHeightSettings
+
+  - platform: template
+    name: "Send Heights to Log"
+    id: button_send_heights_to_log
+    icon: mdi:file-document-outline
+    entity_category: diagnostic
+    disabled_by_default: false
+    on_press:
+      - script.execute:
+          id: script_send_desk_command
+          cmd: getPhysicalDeskLimits
+
 # --------------------------------------------------------------------------
 # Cover (proportional height slider)
 # --------------------------------------------------------------------------
@@ -684,8 +793,8 @@ number:
     name: "Min Height"
     id: number_deskMinHeight
     unit_of_measurement: in
-    min_value: 24
-    max_value: 52
+    min_value: ${desk_config_min_height}
+    max_value: ${desk_config_max_height}
     step: 0.1
     initial_value: ${desk_min_height}
     mode: box
@@ -703,8 +812,8 @@ number:
     name: "Max Height"
     id: number_deskMaxHeight
     unit_of_measurement: in
-    min_value: 24
-    max_value: 52
+    min_value: ${desk_config_min_height}
+    max_value: ${desk_config_max_height}
     step: 0.1
     initial_value: ${desk_max_height}
     mode: box
@@ -765,7 +874,8 @@ switch:
 # --------------------------------------------------------------------------
 # Protocol variant selector — Default works for most Maidesite/DeskUp Pro
 # clones. Switch to Rocka if set-height commands don't move the desk
-# despite nudge/preset working.
+# despite nudge/preset working. Fully Jarvis enables calibrated conversion
+# from motor-step preset packets back to inch-native M1-M4 heights.
 # --------------------------------------------------------------------------
 select:
   - platform: template
@@ -775,6 +885,7 @@ select:
     options:
       - Default
       - Rocka
+      - Fully Jarvis
     initial_option: Default
     restore_value: true
     entity_category: config

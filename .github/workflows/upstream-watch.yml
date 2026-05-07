@@ -1,0 +1,85 @@
+name: Track Adapted Upstreams
+
+on:
+  schedule:
+    - cron: '23 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: check upstream releases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('upstreams.json', 'utf8'));
+
+            for (const pkg of config.packages || []) {
+              if (!pkg.upstreamRepo || !pkg.reviewedRef) continue;
+
+              const [owner, repo] = pkg.upstreamRepo.split('/');
+              let latestRef;
+              let latestUrl = `https://github.com/${pkg.upstreamRepo}`;
+
+              if (pkg.source === 'github-releases') {
+                const { data } = await github.rest.repos.getLatestRelease({ owner, repo });
+                latestRef = data.tag_name;
+                latestUrl = data.html_url;
+              } else if (pkg.source === 'github-tags') {
+                const { data } = await github.rest.repos.listTags({ owner, repo, per_page: 1 });
+                latestRef = data[0]?.name;
+                if (latestRef) latestUrl = `https://github.com/${pkg.upstreamRepo}/releases/tag/${latestRef}`;
+              } else {
+                core.warning(`Unsupported source for ${pkg.name}: ${pkg.source}`);
+                continue;
+              }
+
+              if (!latestRef || latestRef === pkg.reviewedRef) {
+                core.info(`${pkg.name}: reviewed baseline is current (${pkg.reviewedRef})`);
+                continue;
+              }
+
+              const title = `Review ${pkg.name} upstream ${latestRef}`;
+              const query = `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${title}"`;
+              const existing = await github.rest.search.issuesAndPullRequests({ q: query, per_page: 10 });
+              if (existing.data.items.some((item) => item.title === title)) {
+                core.info(`${pkg.name}: issue already exists for ${latestRef}`);
+                continue;
+              }
+
+              const patches = (pkg.localPatches || []).map((patch) => `- ${patch}`).join('\n') || '- none recorded';
+              const body = [
+                `Upstream ${pkg.upstreamRepo} has a newer release than the reviewed baseline for \`${pkg.name}\`.`,
+                '',
+                `- Package path: \`${pkg.path}\``,
+                `- Reviewed baseline: \`${pkg.reviewedRef}\``,
+                `- Latest upstream: \`${latestRef}\``,
+                `- Release: ${latestUrl}`,
+                `- Policy: \`${pkg.policy || 'review-and-port'}\``,
+                '',
+                'Local patches to preserve:',
+                patches,
+                '',
+                'Review checklist:',
+                '- Diff the upstream release against the reviewed baseline',
+                '- Identify changes that apply to this adapted package',
+                '- Preserve local patches and package conventions',
+                '- Port selected changes',
+                '- Update `reviewedRef` in `upstreams.json` after validation'
+              ].join('\n');
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }

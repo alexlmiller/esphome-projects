@@ -10,6 +10,13 @@ Builds on the protocol reverse-engineering from
 This repo's contribution is a self-contained importable package, two patches
 to the upstream's UART logic, and a polished HA dashboard for sharing.
 
+Upstream baseline: reviewed through
+[SmartHomeGuys/DeskUp-Pro-Controller-RJ12 v2026.5.0](https://github.com/SmartHomeGuys/DeskUp-Pro-Controller-RJ12/releases/tag/v2026.5.0).
+The package keeps its Home Assistant entities inch-native while porting
+applicable upstream firmware improvements. Local differences from upstream are
+intentional: wrapper-friendly substitutions, the Rocka string-comparison fix,
+and inch-native wire-boundary conversions.
+
 <p align="center">
   <img src="images/dashboard.jpeg" alt="Home Assistant dashboard" width="380" />
   &nbsp;&nbsp;
@@ -56,6 +63,8 @@ substitutions:
   device_name: "Standing Desk"
   desk_min_height: "25.2"               # measure full-down height in inches
   desk_max_height: "50.8"               # measure full-up height in inches
+  desk_config_min_height: "22.0"        # editable lower bound for Min/Max boxes
+  desk_config_max_height: "54.0"        # editable upper bound for Min/Max boxes
 ```
 
 If you're on hardware other than the S3 Mini, also override `board`, `tx_pin`,
@@ -86,6 +95,18 @@ After the first flash, all subsequent updates work OTA over WiFi.
 If `set_height` (slider) doesn't move the desk but nudge / preset jumps do,
 flip **Control Code Variant** in HA from `Default` to `Rocka` (no re-flash
 needed).
+
+If you use a Fully Jarvis/Jiecang controller and M1-M4 preset sensors report
+raw motor counts instead of real heights, set **Control Code Variant** to
+`Fully Jarvis`, make sure the **Min Height** and **Max Height** config boxes
+match the measured full-down and full-up heights, set M1 on the physical
+handset to full-down and M4 to full-up, then press **Calibrate Fully Jarvis**.
+The package stores the min/max motor counts and converts future M1-M4 packets
+back to inches.
+
+To discover the desk's physical travel limits, press **Send Heights to Log** in
+Home Assistant and watch the ESPHome logs or Web Server UI for the reported
+minimum and maximum heights.
 
 ## Home Assistant dashboard + sit/stand tracking
 
