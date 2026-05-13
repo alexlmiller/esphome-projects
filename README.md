@@ -78,6 +78,11 @@ esphome run smart-scale.yaml
   reviewed upstream baseline in [`upstreams.json`](upstreams.json). The
   scheduled upstream watcher opens an issue when a source project publishes a
   newer release, so the porting review happens next to the package code.
+- **Dependency updates**: Renovate tracks GitHub Actions, the pinned ESPHome
+  validation toolchain in [`requirements.txt`](requirements.txt), and
+  version-tagged ESPHome `external_components` declared as
+  `source: github://owner/repo@v1.2.3`. Branch refs such as `@main` or `@dev` are
+  intentionally manual because they do not represent a reviewable release bump.
 - **License**: MIT — see [LICENSE](LICENSE).
 
 ## Contributing

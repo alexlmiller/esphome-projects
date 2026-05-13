@@ -1,0 +1,54 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":dependencyDashboard",
+  ],
+  timezone: "America/Denver",
+  schedule: ["before 6am on Monday"],
+  labels: ["dependencies"],
+  prHourlyLimit: 2,
+
+  ignorePaths: [
+    "**/.esphome/**",
+    "**/secrets.yaml",
+    "smart-scale/kicad/**",
+    "smart-scale/kicad-codex/**",
+  ],
+
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Update version-tagged ESPHome external_components GitHub sources.",
+      managerFilePatterns: ["/\\.ya?ml$/"],
+      matchStrings: [
+        "(^|\\n)\\s*-\\s+source:\\s+github://(?<depName>[\\w.-]+/[\\w.-]+)@(?<currentValue>v?\\d[0-9A-Za-z._-]*)",
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver-coerced",
+    },
+  ],
+
+  packageRules: [
+    {
+      description: "Keep GitHub Actions maintenance PRs grouped.",
+      matchManagers: ["github-actions"],
+      groupName: "GitHub Actions",
+      commitMessageTopic: "GitHub Actions",
+    },
+    {
+      description: "Keep ESPHome external component tag bumps grouped.",
+      matchManagers: ["custom.regex"],
+      matchDatasources: ["github-tags"],
+      groupName: "ESPHome external components",
+      commitMessageTopic: "ESPHome external component {{depName}}",
+    },
+    {
+      description: "Keep the ESPHome validation toolchain pinned and reviewable.",
+      matchManagers: ["pip_requirements"],
+      matchPackageNames: ["esphome"],
+      groupName: "ESPHome validation toolchain",
+      commitMessageTopic: "ESPHome",
+    },
+  ],
+}

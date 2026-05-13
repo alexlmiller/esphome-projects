@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - '**/*.yaml'
+      - 'requirements.txt'
       - '.github/workflows/validate.yml'
   push:
     branches: [main]
     paths:
       - '**/*.yaml'
+      - 'requirements.txt'
       - '.github/workflows/validate.yml'
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
       - name: Install ESPHome
         run: |
           python -m pip install --upgrade pip
-          pip install esphome
+          pip install -r requirements.txt
 
       - name: Find device YAMLs
         id: find
