@@ -14,7 +14,7 @@ jobs:
     name: check upstream releases
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/github-script@v9
         with:
@@ -37,6 +37,11 @@ jobs:
                 const { data } = await github.rest.repos.listTags({ owner, repo, per_page: 1 });
                 latestRef = data[0]?.name;
                 if (latestRef) latestUrl = `https://github.com/${pkg.upstreamRepo}/releases/tag/${latestRef}`;
+              } else if (pkg.source === 'github-branch') {
+                const branch = pkg.branch || 'main';
+                const { data } = await github.rest.repos.getBranch({ owner, repo, branch });
+                latestRef = data.commit.sha;
+                latestUrl = `https://github.com/${pkg.upstreamRepo}/commit/${latestRef}`;
               } else {
                 core.warning(`Unsupported source for ${pkg.name}: ${pkg.source}`);
                 continue;

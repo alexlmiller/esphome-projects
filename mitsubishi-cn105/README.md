@@ -83,7 +83,9 @@ syslog:
 
 ## External component pinning
 
-The package pins `echavet/MitsubishiCN105ESPHome` to `@v1.6.7`. The `cn105` climate component exposes some internal-looking members (e.g. `isUARTConnected_`) that would silently break on upstream main if renamed. Bump deliberately.
+The package pins `echavet/MitsubishiCN105ESPHome` to its latest stable release,
+`@2026.5.1`. This release includes the sensor API and uptime implementation
+changes required by ESPHome 2026.8.
 
 ## Compatible indoor units
 

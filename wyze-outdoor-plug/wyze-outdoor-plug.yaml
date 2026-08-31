@@ -57,8 +57,8 @@ esphome:
       - lambda: |-
           ESP_LOGD("boot", "Starting custom restore mode logic");
 
-          std::string restore_mode1 = id(relay1_restore_mode_select).state;
-          std::string restore_mode2 = id(relay2_restore_mode_select).state;
+          std::string restore_mode1 = id(relay1_restore_mode_select).current_option().str();
+          std::string restore_mode2 = id(relay2_restore_mode_select).current_option().str();
 
           ESP_LOGD("boot", "Relay1 restore mode: %s", restore_mode1.c_str());
           ESP_LOGD("boot", "Relay2 restore mode: %s", restore_mode2.c_str());
@@ -270,14 +270,14 @@ text_sensor:
   - platform: template
     name: "${display_name} Relay1 Restore Mode Text"
     lambda: |-
-      return id(relay1_restore_mode_select).state;
+      return id(relay1_restore_mode_select).current_option().str();
     update_interval: 60s
     icon: "mdi:restore"
 
   - platform: template
     name: "${display_name} Relay2 Restore Mode Text"
     lambda: |-
-      return id(relay2_restore_mode_select).state;
+      return id(relay2_restore_mode_select).current_option().str();
     update_interval: 60s
     icon: "mdi:restore"
 

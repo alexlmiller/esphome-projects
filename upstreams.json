@@ -12,6 +12,20 @@
         "inch-native Home Assistant entities and wire-boundary conversions",
         "Rocka string-comparison fix"
       ]
+    },
+    {
+      "name": "emporia-vue",
+      "path": "emporia-vue",
+      "upstreamRepo": "emporia-vue-local/esphome",
+      "source": "github-branch",
+      "branch": "dev",
+      "reviewedRef": "79e2747371b70370b96ef919f7c1e556f461344a",
+      "policy": "review-and-test",
+      "localPatches": [
+        "wrapper-owned phase and CT clamp configuration",
+        "ESPHome boilerplate and site substitutions",
+        "production energy and logging behavior"
+      ]
     }
   ]
 }

@@ -81,8 +81,8 @@ esphome run smart-scale.yaml
 - **Dependency updates**: Renovate tracks GitHub Actions, the pinned ESPHome
   validation toolchain in [`requirements.txt`](requirements.txt), and
   version-tagged ESPHome `external_components` declared as
-  `source: github://owner/repo@v1.2.3`. Branch refs such as `@main` or `@dev` are
-  intentionally manual because they do not represent a reviewable release bump.
+  `source: github://owner/repo@v1.2.3`. Adapted or branch-only upstreams are
+  pinned to a reviewed ref and tracked through [`upstreams.json`](upstreams.json).
 - **License**: MIT — see [LICENSE](LICENSE).
 
 ## Contributing

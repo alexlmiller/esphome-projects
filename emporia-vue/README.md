@@ -2,7 +2,8 @@
 
 ESPHome config for the Emporia Vue Energy Monitor — a 16-channel whole-home power monitor that clamps onto your service entrance and individual circuit breakers. Wraps [emporia-vue-local/esphome](https://github.com/emporia-vue-local/esphome) with production wiring.
 
-> **Status**: ✅ Stable. In service on two panels.
+> **Status**: ✅ Stable. In service on two panels. The external component is
+> pinned to the reviewed `dev` commit recorded in `../upstreams.json`.
 
 ## What this package gives you
 
