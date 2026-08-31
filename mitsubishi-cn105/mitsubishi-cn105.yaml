@@ -103,10 +103,9 @@ web_server:
   port: 80
 
 external_components:
-  # Pinned to a release tag — the cn105 climate component exposes some
-  # internal-looking members (e.g. isUARTConnected_) that would silently
-  # break on upstream main if the author renamed them. Bump deliberately.
-  - source: github://echavet/MitsubishiCN105ESPHome@v1.6.7
+  # Pinned to the latest stable release. ESPHome 2026.8 removed APIs used by
+  # v1.6.7; the 2026.x component releases carry the compatibility fixes.
+  - source: github://echavet/MitsubishiCN105ESPHome@2026.5.1
 
 uart:
   id: HP_UART

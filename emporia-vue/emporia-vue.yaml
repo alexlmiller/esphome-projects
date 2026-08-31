@@ -101,7 +101,8 @@ web_server:
   version: 3
 
 external_components:
-  - source: github://emporia-vue-local/esphome@dev
+  # Reviewed dev-branch baseline; upstreams.json watches for newer commits.
+  - source: github://emporia-vue-local/esphome@79e2747371b70370b96ef919f7c1e556f461344a
     components:
       - emporia_vue
     refresh: 1d
