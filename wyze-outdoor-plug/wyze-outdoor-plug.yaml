@@ -64,18 +64,23 @@ esphome:
           ESP_LOGD("boot", "Relay2 restore mode: %s", restore_mode2.c_str());
 
           // Relay1 custom restore logic
-          if (restore_mode1 == "Restore On") {
+          if (restore_mode1 == "Restore Off") {
+            ESP_LOGD("boot", "Setting Relay1 OFF");
+            id(relay1).turn_off();
+          } else if (restore_mode1 == "Restore On") {
             ESP_LOGD("boot", "Setting Relay1 ON");
             id(relay1).turn_on();
           } else if (restore_mode1 == "Opposite Last State") {
             ESP_LOGD("boot", "Toggling Relay1 to opposite of last state");
             id(relay1).toggle();
           }
-          // "Restore Off" and "Restore Last State" are handled by ESPHome's
-          // built-in restore_mode
+          // "Restore Last State" is handled by ESPHome's built-in restore_mode.
 
           // Relay2 custom restore logic
-          if (restore_mode2 == "Restore On") {
+          if (restore_mode2 == "Restore Off") {
+            ESP_LOGD("boot", "Setting Relay2 OFF");
+            id(relay2).turn_off();
+          } else if (restore_mode2 == "Restore On") {
             ESP_LOGD("boot", "Setting Relay2 ON");
             id(relay2).turn_on();
           } else if (restore_mode2 == "Opposite Last State") {
@@ -123,7 +128,8 @@ switch:
       number: GPIO15
       inverted: false
     id: relay1
-    restore_mode: ALWAYS_OFF
+    # Restore the previous state first; on_boot applies the selected override.
+    restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       - light.turn_on: relay1_led
     on_turn_off:
@@ -136,7 +142,8 @@ switch:
       number: GPIO32
       inverted: false
     id: relay2
-    restore_mode: ALWAYS_OFF
+    # Restore the previous state first; on_boot applies the selected override.
+    restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       - light.turn_on: relay2_led
     on_turn_off:
