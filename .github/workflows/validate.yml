@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - '**/*.yaml'
+      - 'eco-flow-erv/components/**'
+      - 'eco-flow-erv/tests/**'
       - 'requirements.txt'
       - '.github/workflows/validate.yml'
   push:
     branches: [main]
     paths:
       - '**/*.yaml'
+      - 'eco-flow-erv/components/**'
+      - 'eco-flow-erv/tests/**'
       - 'requirements.txt'
       - '.github/workflows/validate.yml'
   workflow_dispatch:
@@ -62,3 +66,13 @@ jobs:
             esphome config "$f"
             echo "::endgroup::"
           done <<< "${{ steps.find.outputs.files }}"
+
+      - name: Test ERV protocol and state machine
+        run: |
+          python eco-flow-erv/tests/test_config.py
+          c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            eco-flow-erv/tests/test_protocol.cpp -o /tmp/erv-protocol-test
+          /tmp/erv-protocol-test
+
+      - name: Compile ERV NanoC6 prototype (no flash)
+        run: esphome compile eco-flow-erv/eco-flow-erv.yaml

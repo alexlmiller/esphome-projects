@@ -15,6 +15,7 @@ self-contained: a build README, the canonical YAML, and any helper assets
 | Smart Scale | Waveshare ESP32-S3-Mini + HX711 + 4× load cells + SSD1309 OLED + LIS3DH + TPS61023 | 🚧 In progress | [smart-scale/](smart-scale/) |
 | Mitsubishi CN105 mini-splits | M5Stack Atom + CN105 cable | 📦 Planned migration | [mitsubishi-cn105/](mitsubishi-cn105/) |
 | Standing Desk Controller | ESP32-S3 Mini or M5Stack NanoC6 + DeskUp Pro RJ12 board | ✅ Stable | [desk-controller/](desk-controller/) |
+| Eco-Flo bedroom ERV | M5Stack NanoC6 + UART interface (electrical design pending) | 🚧 Bench prototype; IN unverified | [eco-flow-erv/](eco-flow-erv/) |
 | Sauna Controller | Custom ESP32 + thermostat + RS-485 panel transport | 🔗 External repo | [sauna-controller/](sauna-controller/) |
 
 Status legend: 🚧 in progress · ✅ stable · 📦 planned migration · 🔗 external repo

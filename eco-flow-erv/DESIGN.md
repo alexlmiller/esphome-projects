@@ -1,6 +1,13 @@
-# Eco-Flo ERV — ESPHome Automation Design
+# Eco-Flo ERV — Historical Preliminary Design (Superseded)
 
-> **Status**: 🚧 Design phase. Bench bring-up not started.
+> **Historical proposal, not current wiring/build instructions.** The OUT bus
+> was decoded on 2026-09-09. Use [README.md](README.md) for the narrowed UART
+> prototype and [BENCH-NOTES.md](BENCH-NOTES.md) for evidence and unknowns.
+> The text below is preserved to explain the original investigation, but contains
+> disproven assumptions: XP1 is six pins/two jumpers, not a three-pin relay tap;
+> XP5 is a motor connector, not an approved power supply tap; the NanoC6 exposes
+> two Grove signal GPIOs, not 6–8 general expansion pins. No XP1 relay, IR tap,
+> native sensor taps, or mains-power modification is part of the current build.
 
 This document is the full upfront design for retrofitting an ESP32 inside a
 CFM Eco-Flo / Vents TwinFresh Comfo **RA1-50-2** ductless ERV so it can be

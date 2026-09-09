@@ -1,0 +1,93 @@
+# Experimental prototype: do not connect GPIOs directly to the ERV.
+# See README.md for the unverified electrical interface and IN test gate.
+substitutions:
+  tech_name: eco-flo-bedroom
+  display_name: Bedroom ERV
+  erv_board: esp32-c6-devkitc-1
+  erv_variant: esp32c6
+  erv_tx_pin: GPIO1
+  erv_rx_pin: GPIO2
+  erv_tx_inverted: 'true'
+  erv_rx_inverted: 'true'
+  erv_baud: '618'
+  erv_frame_interval: 97ms
+  erv_enable_recovery: 'false'
+
+esphome:
+  name: ${tech_name}
+  friendly_name: ${display_name}
+  min_version: 2026.8.2
+
+esp32:
+  board: ${erv_board}
+  variant: ${erv_variant}
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+  baud_rate: 0
+
+api:
+  encryption:
+    key: !secret api_key
+  # Keep the local control loop running if Home Assistant is unavailable.
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s
+  ap:
+    ssid: ${tech_name}-ap
+    password: !secret wifi_fallback_pw
+
+captive_portal:
+
+# Local checkout by default. A remote wrapper must override this source with
+# the git source + eco-flow-erv/components path shown in README.md.
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [eco_flow_erv]
+
+uart:
+  id: erv_uart
+  tx_pin:
+    number: ${erv_tx_pin}
+    inverted: ${erv_tx_inverted}
+  rx_pin:
+    number: ${erv_rx_pin}
+    inverted: ${erv_rx_inverted}
+  baud_rate: ${erv_baud}
+  data_bits: 8
+  parity: EVEN
+  stop_bits: 2
+  rx_buffer_size: 256
+  rx_full_threshold: 1
+  rx_timeout: 1
+
+fan:
+  - platform: eco_flow_erv
+    id: erv
+    name: Requested fan
+    uart_id: erv_uart
+    restore_mode: NO_RESTORE
+    frame_interval: ${erv_frame_interval}
+    enable_recovery: ${erv_enable_recovery}
+    control_enabled:
+      id: erv_control_enabled
+      name: Enable control frames
+    airflow_mode:
+      id: erv_airflow_mode
+      name: Requested airflow mode
+    observed_frame:
+      name: Observed OUT frame
+    out_active:
+      name: OUT traffic present
