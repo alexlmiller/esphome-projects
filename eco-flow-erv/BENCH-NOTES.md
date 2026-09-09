@@ -119,3 +119,33 @@ Monitoring OUT must not be advertised as an acknowledgement or fan tachometer.
 The user only needs power, speed, and direction, and accepts ESP32-only control.
 The remaining gate is a protected hardware bench test, not more broad remote
 button decoding. See README for the ordered test plan.
+
+## USB-only NanoC6 flash — 2026-09-09
+
+User confirmed USB connection to the development Mac with Grove disconnected,
+and approved reuse of existing infra ESPHome credentials. Credentials were
+rendered into ignored, mode-0600 local secrets; neither secrets nor generated
+firmware images are committed.
+
+- Target identified over USB as ESP32-C6FH4 revision 0.2 with 4 MB embedded flash.
+- Source: `559d3d0` on `codex/eco-flow-erv-prototype`, ESPHome 2026.8.2 / ESP-IDF
+  5.5.5, DEBUG USB logging. Build completed with the approved credentials.
+- Optional 4 MB pre-flash backup failed twice with "Serial data stream stopped"
+  at requested 460800 and 115200 baud. **No rollback image was obtained.**
+- Standard USB upload at requested 115200 baud succeeded; esptool verified the
+  written data hash and reset the device. No separate full-chip erase was used.
+- Serial setup completed successfully with GPIO1 TX / GPIO2 RX, 618 baud, 8E2.
+  Both observed boots logged an initial Wi-Fi authentication failure followed
+  by a successful retry. Reopening the USB serial port produced a fresh boot;
+  use network logs for follow-up observation without further serial opens.
+- Encrypted native API access succeeded with expected device name and MAC
+  checks. All five exposed entities returned their expected boot states:
+  Requested fan OFF, speed 1; Requested airflow mode Supply; Enable control
+  frames OFF; OUT traffic present false; Observed OUT frame "No OUT data".
+- Initial five-second diagnostics consistently reported control OFF, TX=0,
+  RX=0 and no checksum candidates. This is software counter evidence, not a
+  logic-analyzer measurement of GPIO voltage or idle level.
+
+No fan, mode or arming commands were sent, and the Nano was not connected to
+ERV IN, OUT or power. USB-only bring-up is verified; the protected interface,
+isolated TX waveform check and actual IN-control test remain outstanding.

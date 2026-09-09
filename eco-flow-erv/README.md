@@ -144,8 +144,12 @@ loops, and timer wrap.
 
 Local validation on 2026-09-09, including bench logging: all 15 configuration tests and the sanitized C++
 protocol/state-machine suite passed; the NanoC6 ESP-IDF firmware compiled with
-ESPHome 2026.8.2. This verifies software/build behavior, not IN acceptance or
-electrical compatibility. No flash, OTA, or ERV transmission was performed.
+ESPHome 2026.8.2. A subsequent user-approved USB-only flash with the Grove plug
+disconnected passed write/hash verification. Wi-Fi, encrypted API access and
+boot defaults were verified; diagnostics showed control OFF and TX=0. This
+does not verify IN acceptance or electrical compatibility. No ERV connection,
+control commands, or OTA deployment was performed. See the dated flash entry
+in BENCH-NOTES.md for details and the unsuccessful pre-flash backup attempt.
 
 ### Bench logging
 
