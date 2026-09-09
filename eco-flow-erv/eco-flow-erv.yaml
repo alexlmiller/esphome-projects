@@ -12,6 +12,10 @@ substitutions:
   erv_baud: '618'
   erv_frame_interval: 97ms
   erv_enable_recovery: 'false'
+  erv_log_level: DEBUG
+  erv_log_uart: USB_SERIAL_JTAG
+  erv_log_baud: '115200'
+  erv_diagnostics_interval: 5s
 
 esphome:
   name: ${tech_name}
@@ -26,8 +30,17 @@ esp32:
     type: esp-idf
 
 logger:
-  level: INFO
-  baud_rate: 0
+  # NanoC6 native USB console; never send logging onto the ERV UART.
+  hardware_uart: ${erv_log_uart}
+  level: ${erv_log_level}
+  baud_rate: ${erv_log_baud}
+  logs:
+    eco_flow_erv: ${erv_log_level}
+    component: INFO
+    sensor: INFO
+    binary_sensor: INFO
+    text_sensor: INFO
+    uart.idf: ${erv_log_level}
 
 api:
   encryption:
@@ -81,6 +94,7 @@ fan:
     restore_mode: NO_RESTORE
     frame_interval: ${erv_frame_interval}
     enable_recovery: ${erv_enable_recovery}
+    diagnostics_interval: ${erv_diagnostics_interval}
     control_enabled:
       id: erv_control_enabled
       name: Enable control frames

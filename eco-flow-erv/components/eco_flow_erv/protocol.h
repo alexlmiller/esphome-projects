@@ -35,8 +35,11 @@ class Parser {
     this->window_[1] = this->window_[2];
     this->window_[2] = byte;
     if (this->length_ < 3) ++this->length_;
-    if (this->length_ == 3 && this->window_[0] == 0x05 &&
-        this->window_[2] == static_cast<uint8_t>(0x05 + this->window_[1])) {
+    if (this->length_ == 3 && this->window_[0] == 0x05) {
+      if (this->window_[2] != static_cast<uint8_t>(0x05 + this->window_[1])) {
+        ++this->bad_checksum_candidates_;
+        return false;
+      }
       frame = this->window_;
       this->length_ = 0;
       return true;
@@ -44,10 +47,14 @@ class Parser {
     return false;
   }
   void reset() { this->length_ = 0; this->window_ = {}; }
+  // Counts rejected 05-prefixed windows, NOT an exact dropped-packet count.
+  // Stream resynchronization resets the window but retains this lifetime count.
+  uint32_t bad_checksum_candidates() const { return this->bad_checksum_candidates_; }
 
  protected:
   Frame window_{};
   uint8_t length_{0};
+  uint32_t bad_checksum_candidates_{0};
 };
 
 // The component and host tests use the same scheduler/state machine. No catch-

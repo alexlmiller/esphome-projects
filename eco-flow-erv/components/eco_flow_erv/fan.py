@@ -37,6 +37,10 @@ CONFIG_SCHEMA = (
             cv.positive_time_period_milliseconds,
             cv.Range(min=cv.TimePeriod(seconds=1), max=cv.TimePeriod(seconds=60)),
         ),
+        cv.Optional("diagnostics_interval", default="5s"): cv.All(
+            cv.positive_time_period_milliseconds,
+            cv.Range(min=cv.TimePeriod(seconds=1), max=cv.TimePeriod(seconds=60)),
+        ),
         cv.Optional("observed_frame"): text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC
         ),
@@ -61,6 +65,7 @@ async def to_code(config):
     cg.add(var.set_frame_interval(config["frame_interval"]))
     cg.add(var.set_phase_packets(config["recovery_phase_packets"]))
     cg.add(var.set_out_timeout(config["out_timeout"]))
+    cg.add(var.set_diagnostics_interval(config["diagnostics_interval"]))
 
     gate = await switch.new_switch(config["control_enabled"], var)
     cg.add(var.set_control_switch(gate))

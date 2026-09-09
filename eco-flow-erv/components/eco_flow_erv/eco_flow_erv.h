@@ -39,6 +39,7 @@ class EcoFlowFan : public Component, public fan::Fan, public uart::UARTDevice {
   void set_frame_interval(uint32_t ms) { this->frame_interval_ = ms; this->controller_.set_interval(ms); }
   void set_phase_packets(uint16_t n) { this->controller_.set_phase_packets(n); }
   void set_out_timeout(uint32_t ms) { this->out_timeout_ = ms; }
+  void set_diagnostics_interval(uint32_t ms) { this->diagnostics_interval_ = ms; }
   void set_control_switch(ControlSwitch *gate) { this->gate_ = gate; }
   void set_mode_select(ModeSelect *mode) { this->mode_select_ = mode; }
   void set_observed_frame(text_sensor::TextSensor *sensor) { this->observed_ = sensor; }
@@ -50,6 +51,7 @@ class EcoFlowFan : public Component, public fan::Fan, public uart::UARTDevice {
   void control(const fan::FanCall &call) override;
   void publish_requested_();
   void receive_(const Frame &frame, uint32_t now);
+  void log_diagnostics_(uint32_t now);
   Controller controller_;
   Parser parser_;
   ControlSwitch *gate_{nullptr};
@@ -58,6 +60,18 @@ class EcoFlowFan : public Component, public fan::Fan, public uart::UARTDevice {
   binary_sensor::BinarySensor *active_{nullptr};
   uint32_t frame_interval_{97};
   uint32_t out_timeout_{2000};
+  uint32_t diagnostics_interval_{5000};
+  uint32_t last_diagnostics_{0};
+  uint32_t tx_frames_{0};
+  uint32_t rx_frames_{0};
+  uint32_t rx_bytes_{0};
+  uint32_t unknown_frames_{0};
+  uint32_t last_tx_time_{0};
+  uint32_t last_tx_gap_{0};
+  uint32_t max_tx_gap_{0};
+  uint32_t last_bad_candidates_{0};
+  uint8_t last_tx_state_{0};
+  bool has_tx_{false};
   uint32_t last_rx_byte_{0};
   uint32_t last_rx_frame_{0};
   uint8_t last_rx_state_{0};

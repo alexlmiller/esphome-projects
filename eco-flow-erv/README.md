@@ -47,6 +47,14 @@ interface polarity, and grounding must be settled before connecting the two.
 The Grove red wire is 5 V power; it is not another signal or an approved ERV
 power input. No internal ERV power tap is selected in this prototype.
 
+For the first flash, use USB power with the Grove plug removed from the Nano.
+Finding a pad that measures 5 V is not enough to approve it as a supply: its
+available current, regulation, isolation and return path must be checked first.
+Do not parallel an ERV-derived 5 V supply and USB power before reviewing the
+power paths/backfeed protection. The Nano's 5 V power connection does not make
+its signal GPIOs 5 V-tolerant; see
+[Espressif's GPIO voltage guidance](https://docs.espressif.com/projects/esp-faq/en/latest/hardware-related/hardware-design.html#what-is-the-voltage-tolerance-of-gpios-of-esp-chips).
+
 The recordings are inverted **as captured**. TX and RX inversion are separately
 configurable because a level-conversion/isolation stage can change polarity.
 The multimeter averages do not establish waveform peaks or resolve the apparent
@@ -97,6 +105,9 @@ Canonical local entrypoint: `eco-flow-erv.yaml`. Pinned repo ESPHome version:
 | `erv_baud` | `618` | Measured timing candidate; not proven nominal baud |
 | `erv_frame_interval` | `97ms` | Frame start cadence |
 | `erv_enable_recovery` | `false` | Expose experimental recovery option |
+| `erv_log_level` | `DEBUG` | Bench detail; INFO, VERBOSE and VERY_VERBOSE also tested |
+| `erv_log_uart`, `erv_log_baud` | `USB_SERIAL_JTAG`, `115200` | NanoC6 USB logs, separate from ERV UART |
+| `erv_diagnostics_interval` | `5s` | Periodic DEBUG summary (1–60 seconds) |
 
 UART uses 8 data bits, even parity, 2 stop bits. The component rejects other
 framing at validation; runtime setup rejects baud outside 550–700 or intervals
@@ -131,10 +142,43 @@ does not flash. Tests cover captured/inferred fixtures separately, parser
 resynchronization, off-state independence, arming, recovery scheduling, delayed
 loops, and timer wrap.
 
-Local validation on 2026-09-09: all 10 configuration tests and the sanitized C++
+Local validation on 2026-09-09, including bench logging: all 15 configuration tests and the sanitized C++
 protocol/state-machine suite passed; the NanoC6 ESP-IDF firmware compiled with
 ESPHome 2026.8.2. This verifies software/build behavior, not IN acceptance or
 electrical compatibility. No flash, OTA, or ERV transmission was performed.
+
+### Bench logging
+
+USB serial logging is enabled explicitly on the NanoC6's native USB peripheral;
+it does not consume GPIO1/GPIO2 or send log text to the ERV. Other board variants
+may need a different `erv_log_uart`; never choose a logger UART that shares the
+ERV signal pins. Set `erv_log_baud: '0'` for network-only logging later.
+See [ESPHome logger documentation](https://esphome.io/components/logger/).
+
+The default DEBUG build logs:
+
+- Accepted power/speed/mode requests, ignored ON requests while disarmed, and
+  changes in the queued TX state (including experimental recovery flips).
+- Changes in decoded OUT frames, and the transition to stale OUT traffic.
+- Every five seconds: cumulative TX/RX frame counts, RX bytes, rejected checksum
+  candidates, unknown-state count, OUT freshness/age, and TX queue cadence.
+
+`bad_candidates` counts rejected **05-prefixed three-byte windows**, not an
+exact lost-frame or UART parity-error count. It persists across parser resets.
+TX times describe calls into the UART driver, not measured wire edges or ERV
+acceptance; RX times describe software receipt, not physical motor changes.
+The maximum TX gap is per diagnostics window, excluding deliberate disarming.
+
+For a short packet-by-packet session, override `erv_log_level: VERBOSE` and
+recompile. VERY_VERBOSE additionally logs raw RX bytes, useful when baud or
+polarity prevents valid frames. Higher levels increase traffic and can disturb
+timing; return to DEBUG after diagnosing. No RX-to-TX automatic response is added.
+
+After the hardware and credential gates are satisfied, USB logs can be viewed
+with `esphome logs eco-flow-erv/eco-flow-erv.yaml --device <confirmed-USB-port>`.
+The console is log output, not a command interpreter; controls still use the
+authenticated ESPHome API. A real credential source is required before a useful
+control-test flash; do not install the example-secret build as a network device.
 
 ### Remote package wrapper (after the component is published)
 

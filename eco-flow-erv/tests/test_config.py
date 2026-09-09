@@ -42,6 +42,21 @@ class ConfigurationTests(unittest.TestCase):
     def test_recovery_opt_in(self):
         self.check_config("substitutions:\n  erv_enable_recovery: 'true'\n")
 
+    def test_verbose_logging(self):
+        self.check_config("substitutions:\n  erv_log_level: VERBOSE\n")
+
+    def test_info_logging(self):
+        self.check_config("substitutions:\n  erv_log_level: INFO\n")
+
+    def test_raw_logging(self):
+        self.check_config("substitutions:\n  erv_log_level: VERY_VERBOSE\n")
+
+    def test_network_only_logging(self):
+        self.check_config("substitutions:\n  erv_log_baud: '0'\n")
+
+    def test_fast_diagnostics_rejected(self):
+        self.check_config("substitutions:\n  erv_diagnostics_interval: 1ms\n", False)
+
     def test_no_rx_pin(self):
         self.check_config("uart:\n  rx_pin: !remove\n")
 

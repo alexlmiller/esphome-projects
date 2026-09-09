@@ -29,6 +29,7 @@ int main() {
   for (uint8_t byte : {0xFF, 0x05, 0x19, 0x00, 0x05, 0x00, 0x05})
     if (parser.push(byte, received)) { ++count; assert(received == off); }
   assert(count == 1);
+  assert(parser.bad_checksum_candidates() == 1);
   for (const auto &frame : supply) {
     assert(!parser.push(frame[0], received));
     assert(!parser.push(frame[1], received));
@@ -39,6 +40,14 @@ int main() {
   parser.reset();
   assert(!parser.push(0x19, received));
   assert(!parser.push(0x1E, received));
+  assert(parser.bad_checksum_candidates() == 1);  // Resync retains diagnostics.
+  Parser repeated_off;
+  for (unsigned i = 0; i < 100; ++i) {
+    assert(!repeated_off.push(0x05, received));
+    assert(!repeated_off.push(0x00, received));
+    assert(repeated_off.push(0x05, received));
+  }
+  assert(repeated_off.bad_checksum_candidates() == 0);
   assert(known_state(0x0E));
   assert(!known_state(0x08));  // Do not invent passive mode.
   assert(!known_state(0x18));
