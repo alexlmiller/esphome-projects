@@ -1,0 +1,276 @@
+         INSTALLATION GUIDE
+SINGLE-ROOM REVERSIBLE ENERGY REGENERATION VENTILATOR
+TwinFresh Expert (Duo) RA1
+
+
+
+
+INSTALLATION
+                                                                                          Tools required
+
+
+
+
+          Pencil           Drill Ø6 mm (1/4’’), 40 mm (1 9/16’’)          Screwdriver       Dowel Ø6 mm (1/4’’), 40 mm (1 9/16’’) 4 pcs.                            Screws Ø6 mm (1/4’’), 40 mm (1 9/16’’) 4pcs.
+MOUNTING
+   1. Prepare a round core hole in the outer wall. The hole size is shown in the figure below. While preparing a core hole it is recommended to make preparations for layout of the power
+cable and other required cables.
+                                                                                                                A                                                         A-A
+
+                                           min 500
+
+                                                             min 500
+
+
+
+
+                                                                                                                                Inner side of the wall                                    Outer side of the wall
+                                          Ø170
+                                                           min 500                                     Ø170
+
+
+
+
+                                                                                                                A
+
+  2. Install the air duct in the wall and fix it with mounting foam. The air duct end must protrude for the distance that enables installation of the outer ventilation hood (see the User’s
+manual for the outer ventilation hood).
+
+                                                                                        Inner side of                                                    Outer side of
+                                                                                          the wall                                                         the wall
+
+
+
+
+                                                                                            0–3                                                               10 – 110
+                                                                                           0 - 1/8’’                                                          3/8’’ - 4 5/16’’
+
+
+
+
+                                                           Seal the centred
+                                                          air duct using the
+                                                           mounting foam
+
+
+
+
+                         Bodor Vents, LLC DBA: VENTS-US                                                                                                                                 TwinFresh Expert (Duo) RA1
+                         11013 Kenwood Road Cincinnati, Ohio 45242
+                         Phone: (513)348-3853
+   www.ventsus.com       e-mail: sales@ventsus.com                                                01
+    3. Stick the delivered cardboard master plate on the indoor wall using a mounting tape. The large opening in the master plate must be axially aligned with the air duct. For
+aligning the master plate with respect to the horizon line it is recommended to use a builder’s level. Then mark the fastening holes for installation of the supplied dowels and drill the
+holes to a required depth. Route the power cable from the wall outside through the specially marked opening on the master plate.
+
+
+
+
+   4. Unlatch and detach the front part of the indoor unit from its back part.
+
+
+
+
+                                                                                                                                                 The thermal actuator rod
+                                                                                                                                                 must be in lower position
+                                                                                                                                                 when installing the front
+                                                                                                                                                       panel of the
+                                                                                                                                                  TwinFresh Expert unit.
+
+
+
+
+   5. Fix the back part of the indoor unit on the wall with the screws supplied with the mounting kit of the ventilator. Remove the two retaining screws from the left transparent
+cover to enable access to the terminals.
+
+
+
+
+                        Bodor Vents, LLC DBA: VENTS-US                                                                                                          TwinFresh Expert (Duo) RA1
+                        11013 Kenwood Road Cincinnati, Ohio 45242
+                        Phone: (513)348-3853
+ www.ventsus.com        e-mail: sales@ventsus.com                                           2
+    6. Route the power cable as figured below and connect the ventilator to power mains in compliance with the external wiring diagram, refer to page 5. Fix the power cable and
+the signal cables with cable clamps. After completion of the electrical connection re-install the transparent cover to its place.
+
+
+
+
+                                                                               Cable clamp
+    7. Install the cartridge into the air duct as figured below. The pointer must be directed upwards. Then fix the wire with the protruding clamp and connect the socket connector to
+the circuit board.
+
+
+
+                                                                                                                                                   The pointer must
+                                                                                                                                                  be directed upwards.
+
+
+
+
+                                                                                                                                                       Insert the wires under the
+                                                                                                                                                     retaining clip and connect the
+                                                                                                                                                     connector to the circuit board.
+
+
+
+
+8. Install the front part of the indoor unit. The thermal actuator rod must be in lower position when installing the front panel, as shown in the figure in Section 4 on page 2.
+
+
+
+
+                        Bodor Vents, LLC DBA: VENTS-US                                                                                                        TwinFresh Expert (Duo) RA1
+                        11013 Kenwood Road Cincinnati, Ohio 45242
+                        Phone: (513)348-3853
+ www.ventsus.com        e-mail: sales@ventsus.com                                          3
+                                     TwinFresh Expert RA1                                                                      TwinFresh Expert Duo RA1
+9. Insert the sound absorbing material into the air duct from the outside.                 9. Install the sectional air flow separators from the outside. Insert a required number of
+Roll the layer of the sound absorbing material to match the air duct diameter. The         the air flow separators in the air duct until they reach the cartridge. Mark the last air flow
+protecting paper layer must be outside.                                                    separator to be flush with the air duct face, remove it from the air duct and cut the exces-
+Insert the sound absorbing roll into the cartridge against stop.                           sive part of the last air flow separator. Tighter fixation is provided if the air flow separator
+Make a mark at the end of the air duct, remove the material and cut the roll as marked.    protrudes to some distance.
+After that insert the ready roll into the air duct.                                        Install the adjusted air flow separators in the air duct.
+
+
+
+
+   10. Install the outer ventilation hood. For this, see the user’s manual for the hood.
+
+
+
+
+                        Bodor Vents, LLC DBA: VENTS-US                                                                                                          TwinFresh Expert (Duo) RA1
+                        11013 Kenwood Road Cincinnati, Ohio 45242
+                        Phone: (513)348-3853
+ www.ventsus.com        e-mail: sales@ventsus.com                                          4
+   CONNECTION TO POWER MAINS
+
+                                                                     POWER OFF THE POWER SUPPLY PRIOR TO ANY OPERATIONS WITH THE UNIT.
+                                                                 THE UNIT MUST BE CONNECTED TO POWER SUPPLY BY A QUALIFIED ELECTRICIAN.
+                                                         THE RATED ELECTRICAL PARAMETERS OF THE UNIT ARE GIVEN ON THE MANUFACTURER’S LABEL.
+The ventilator is rated for connection to single-phase АС 100-240V 50/60 Hz power mains.
+Connect the unit to power mains through the external automatic switch with a magnetic trip integrated into the fixed wiring system. The tripping current of the circuit breaker is
+selected based on the electrical characteristics shown on the label of the fan casing.
+For electric installations use insulated, durable and heat-resistant electric leads (cables, conductors) with the minimum cross section 0.5 up to 0.75 mm2 (No. 20÷18 AWG) for the power
+cable and 0.25 mm2 (No. 23 AWG) for the control cables. The cable cross-section is given for reference only. The actual conductor cross-section selection must be based on its type,
+maximum permissible heating, insulation, length and installation method.
+Use copper wires for all the electric connections!
+Connect the ventilator to power mains in compliance with the wiring diagram.
+
+                                                                                                                      EXTERNAL CONNECTIONS DIAGRAM
+ The ventilator design enables connecting external devices with a normally open
+ contact (NO-contact), such as an external CO2 sensor, a humidity sensor, a switch, etc.                     Power L (~)
+                                                                                                       АС 100-240V
+ When the normally open contact of the external device is closed, the ventilator goes
+                                                                                                          50/60 Hz N (~)
+ to a maximum speed.
+
+ The ventilators can be connected in series and in parallel with a central control by the                               QF*
+ master ventilator.
+
+ In case of in series or in parallel connection of several ventilators power is supplied
+ either from a previous ventilator or from power mains.                                                    Power to the                                                   N
+                                                                                                          next ventilator
+                                                                                                                                                                          L
+                                                                                                                                                                          N
+                                                                                                                                                                          L
+                                                                                                                                                                        +12V
+                                                                                                Control signal input from
+                                                                                                  the previous ventilator
+                                                                                                                                                                          In
+                                                                                                                                                                         Gnd
+
+                                                                                                   Control signal output                                                 Gnd
+                                                                                                   to the next ventilator
+                                                                                                                                                                         Out
+
+                                                                                                       Normally open contact                                             NO1
+                                                                                                       of the external device                                            NO2
+                                                                                                       (relay sensor)
+
+
+
+
+                         Bodor Vents, LLC DBA: VENTS-US                                                                                                    TwinFresh Expert (Duo) RA1
+                         11013 Kenwood Road Cincinnati, Ohio 45242
+                         Phone: (513)348-3853
+   www.ventsus.com       e-mail: sales@ventsus.com                                          5
+                                                                  WIRING DIAGRAM FOR IN SERIES CONNECTION
+
+                                  Master                                    Slave 1                          Slave N
+
+
+                                                        N                                     N                              N
+
+                                                        L                                     L                              L
+          N
+                                                        N                                     N                              N
+          L
+                                                        L                                     L                              L
+         Power input                                  +12V                                   +12V                           +12V
+         АС 100-240V 50/60 Hz                           In                                    In                             In
+                                                       Gnd                                   Gnd                            Gnd
+
+                                                       Gnd                                   Gnd                            Gnd
+                                                       Out                                   Out                            Out
+
+                                                       NO1                                   NO1                            NO1
+                                                       NO2                                   NO2                            NO2
+
+
+
+
+                                                                                                                                   to the next
+                                                                                                                                     ventilator
+
+
+
+                                                                 WIRING DIAGRAM FOR IN PARALLEL CONNECTION
+
+                                   Master                                    Slave 1                         Slave N
+
+
+                                                             N                                 N                             N
+
+                                                             L                                 L                             L
+              N
+                                                             N                                 N                             N
+              L
+                                                             L                                 L                             L
+          Power input
+                                                        +12V                                 +12V                           +12V
+          АС 100-240V 50/60 Hz
+                                                            In                                In                             In
+                                                        Gnd                                   Gnd                           Gnd
+
+                                                        Gnd                                   Gnd                           Gnd
+                                                         Out                                  Out                           Out
+
+                                                        NO1                                   NO1                           NO1
+                                                        NO2                                   NO2                           NO2
+
+
+                                                                               to the next                    to the next
+                                                                               ventilator                     ventilator
+
+
+                                                                                                                                   to the next
+                                                                                                                                   ventilator
+
+
+
+
+                   Bodor Vents, LLC DBA: VENTS-US                                                                                            TwinFresh Expert (Duo) RA1
+                   11013 Kenwood Road Cincinnati, Ohio 45242
+                   Phone: (513)348-3853
+www.ventsus.com    e-mail: sales@ventsus.com                                           6
+                  Bodor Vents, LLC DBA: VENTS-US                  TwinFresh Expert (Duo) RA1
+                  11013 Kenwood Road Cincinnati, Ohio 45242
+                  Phone: (513)348-3853
+www.ventsus.com   e-mail: sales@ventsus.com                   7
+                  Bodor Vents, LLC DBA: VENTS-US                  TwinFresh Expert (Duo) RA1
+                  11013 Kenwood Road Cincinnati, Ohio 45242
+                  Phone: (513)348-3853
+www.ventsus.com   e-mail: sales@ventsus.com                   8   Installation Guide139EN-01
+
