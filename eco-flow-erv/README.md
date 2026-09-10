@@ -3,9 +3,9 @@
 For Alex's CFM Eco-Flo / Vents TwinFresh Comfo RA1-50-2 bedroom ERV.
 Related: [issue #7](https://github.com/alexlmiller/esphome-projects/issues/7).
 
-**OUT decoding is established; basic HA-to-ERV IN control worked on the bench
-with non-inverted TX on 2026-09-10.** The complete speed/direction matrix and
-controller-loss behavior still require physical verification.
+**OUT decoding is established; Alex physically verified HA on/off control and
+all three speeds in both Supply and Exhaust with non-inverted TX on
+2026-09-10.** Recovery and controller-loss behavior remain unverified.
 This is bench firmware, not a validated unattended installation. Nothing here
 automatically flashes, deploys, or connects to the ERV.
 
@@ -173,9 +173,12 @@ On 2026-09-10, a user-approved OTA changed TX inversion only, leaving 618 baud,
 8E2, 97 ms cadence and standard credentials unchanged. The new build and disarmed
 boot were verified over the encrypted API. During the manual HA test, logs
 showed OFF followed by Supply ON at speed 3; Alex confirmed the physical unit
-responded exactly as expected. The package now defaults to that working TX
-polarity. This is basic IN-control evidence, not full speed/direction coverage,
-electrical-interface certification, or a verified loss-of-controller failsafe.
+responded exactly as expected. Alex then completed the requested test of all
+three speeds in both Supply and Exhaust and confirmed that all worked. The
+package now defaults to that working TX polarity. This verifies the requested
+core control functions on this unit, not electrical-interface safety, recovery,
+or a loss-of-controller failsafe. The complete matrix is user-observed physical
+verification, not a new instrumented capture or airflow measurement.
 
 ### Bench logging
 
@@ -236,17 +239,18 @@ or lev-haos deployment has been added yet.
 ## Remaining bench and installation checks
 
 1. Select/verify the electrical interface and power/ground arrangement.
-2. With IN disconnected, verify ESP RX reproduces known OUT packets and stale
-   detection. This also checks RX polarity and clock compatibility.
+2. If OUT monitoring is wanted, verify protected ESP RX reproduces known OUT
+   packets and stale detection with IN disconnected. RX polarity and clock
+   compatibility remain separate from the successful TX test.
 3. Capture the now-working non-inverted TX through the selected interface and
    verify actual wire timing, parity, stop bits, idle level, and output levels.
-4. With the interface approved, explicitly verify OFF and ON at speed 1; the
-   successful connected test's logged ON request was speed 3, not speed 1.
-   Observe motor response separately from OUT.
-5. Test all six Supply/Exhaust speed combinations and OFF; establish jumper
-   dependence, physical direction, and whether OUT follows IN while slaved.
-6. Test controller loss/reset/disconnection and recovery behavior before any
-   unattended installation. Night/humidity settings do not block core testing.
+4. Repeat the now-passed on/off and six-state Supply/Exhaust test if the final
+   interface, unit, or airflow jumper configuration changes. The current
+   physical result does not establish other units' jumper/direction mapping.
+5. Test controller loss/reset/disconnection before any unattended installation.
+6. Recovery remains disabled and needs a separately approved test of phase
+   reversals and inferred speed-2/3 packets before it is enabled for use.
+   Night/humidity settings do not block core testing.
 
 See [BENCH-NOTES.md](BENCH-NOTES.md) for raw evidence and remaining uncertainty.
 The original [DESIGN.md](DESIGN.md) is historical and contains superseded wiring

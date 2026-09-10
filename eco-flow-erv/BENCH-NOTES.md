@@ -112,8 +112,9 @@ state, but native policy flags or sensor values have not been decoded.
   supply tap. No relay or jumper modification is required by this prototype.
 
 **Not tested at the initial OUT-decoding stage:** IN acceptance/wake-up, input
-electrical requirements, synthetic master timing tolerance, slave switch/jumper requirements, OUT behavior while
-slaved, actual response latency/direction, and loss-of-transmission behavior.
+electrical requirements, synthetic master timing tolerance, slave switch/jumper
+requirements, OUT behavior while slaved, actual response latency/direction,
+and loss-of-transmission behavior.
 Monitoring OUT must not be advertised as an acknowledgement or fan tachometer.
 
 The user only needs power, speed, and direction, and accepts ESP32-only control.
@@ -249,3 +250,24 @@ Default and override configuration tests now assert TX and RX polarities
 independently; all 15 tests passed. The saved default's resolved config hash
 matches the running test build (`0xeb843046`). No further OTA is needed merely
 to save the working default.
+
+## Core control matrix physically verified — 2026-09-10
+
+After the initial physical response, Alex was asked to verify speeds 1–3 in
+both Supply and Exhaust and reported: **"I verified, it all works"**.
+
+- Supply: speeds 1, 2, and 3 physically confirmed.
+- Exhaust: speeds 1, 2, and 3 physically confirmed.
+- On/off: confirmed in the preceding manual control test.
+
+This completes user-observed verification of the requested core controls on
+this unit with the non-inverted TX build. No new per-state logic capture,
+airflow/RPM measurement, or independently timestamped command log was provided
+for this follow-up matrix. It is physical confirmation by Alex, not an inferred
+result from ESPHome requested states or OUT traffic.
+
+No firmware change, flash, or agent-issued control command accompanied this
+confirmation. Recovery remains disabled. RX monitoring, permanent power and
+electrical protection, behavior on controller loss/reset/disconnection, and
+recovery reversals remain separate, unverified work before the relevant
+features or an unattended installation can be considered validated.
