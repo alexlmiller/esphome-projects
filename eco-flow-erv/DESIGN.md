@@ -1,8 +1,9 @@
 # Eco-Flo ERV — Historical Preliminary Design (Superseded)
 
 > **Historical proposal, not current wiring/build instructions.** The OUT bus
-> was decoded on 2026-09-09. Use [README.md](README.md) for the narrowed UART
-> prototype and [BENCH-NOTES.md](BENCH-NOTES.md) for evidence and unknowns.
+> was decoded on 2026-09-09; IN on/off, speed and direction control was physically
+> verified on 2026-09-10. Use [README.md](README.md) for current setup and
+> [BENCH-NOTES.md](BENCH-NOTES.md) for evidence and unknowns.
 > The text below is preserved to explain the original investigation, but contains
 > disproven assumptions: XP1 is six pins/two jumpers, not a three-pin relay tap;
 > XP5 is a motor connector, not an approved power supply tap; the NanoC6 exposes

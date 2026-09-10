@@ -1,5 +1,9 @@
 # OUT protocol findings — 2026-09-09
 
+Current result: IN on/off and all Supply/Exhaust speeds were physically verified
+on 2026-09-10. Earlier unknowns below describe each test's state at the time.
+See [README.md](README.md) for current setup and remaining checks.
+
 Six recordings from Alex's bedroom CFM Eco-Flo / Vents TwinFresh Comfo RA1-50-2.
 Physical analyzer channel 1 is **D0** in the sigrok session, sampled at 1 MHz.
 D1's short correlated glitches were treated as pickup, not another protocol.
@@ -49,7 +53,9 @@ The supply flag 10 is not a universal direction bit: recovery reverses without i
 ## Capture index and transitions
 
 Times are starts of complete packets, not button presses or physical responses.
-Original files remain in Alex's Downloads; they are not duplicated in this repo.
+Original filenames are listed below. Copies are preserved under
+[`captures/2026-09-09-erv-out/`](captures/2026-09-09-erv-out/) with spaces replaced
+by hyphens; SHA-256 values match the originals.
 
 | File relative to Downloads | Duration | Packets | Significant transitions (seconds: state) |
 | --- | ---: | ---: | --- |
@@ -271,3 +277,9 @@ confirmation. Recovery remains disabled. RX monitoring, permanent power and
 electrical protection, behavior on controller loss/reset/disconnection, and
 recovery reversals remain separate, unverified work before the relevant
 features or an unattended installation can be considered validated.
+
+## ESPHome dashboard — 2026-09-10
+
+Deployed `eco-flo-bedroom.yaml` to the lev-haos ESPHome dashboard. Encrypted
+network logs were verified from both the add-on and its dashboard. No firmware
+flash, shared-secret change, add-on restart or control command was needed.

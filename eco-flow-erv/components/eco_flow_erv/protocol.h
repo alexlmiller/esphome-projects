@@ -8,7 +8,8 @@ namespace esphome::eco_flow_erv {
 using Frame = std::array<uint8_t, 3>;
 enum class Mode : uint8_t { SUPPLY, EXHAUST, RECOVERY };
 
-// OUT-derived candidates, not yet proven commands accepted by IN.
+// OFF and Supply/Exhaust speeds 1–3 physically verified through IN.
+// Recovery remains experimental; phase-B speeds 2/3 are inferred.
 inline Frame encode(bool power, uint8_t speed, Mode mode, bool phase_b = false) {
   uint8_t state = 0;
   if (power && speed >= 1 && speed <= 3) {

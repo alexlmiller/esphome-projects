@@ -1,223 +1,99 @@
-# Eco-Flo ERV — experimental UART prototype
+# Eco-Flo bedroom ERV
 
-For Alex's CFM Eco-Flo / Vents TwinFresh Comfo RA1-50-2 bedroom ERV.
-Related: [issue #7](https://github.com/alexlmiller/esphome-projects/issues/7).
+ESPHome UART control for Alex's CFM Eco-Flo / Vents TwinFresh Comfo RA1-50-2,
+using an M5Stack NanoC6. [Tracking issue #7](https://github.com/alexlmiller/esphome-projects/issues/7).
 
-**OUT decoding is established; Alex physically verified HA on/off control and
-all three speeds in both Supply and Exhaust with non-inverted TX on
-2026-09-10.** Recovery and controller-loss behavior remain unverified.
-This is bench firmware, not a validated unattended installation. Nothing here
-automatically flashes, deploys, or connects to the ERV.
+On 2026-09-10 Alex physically verified **on/off and speeds 1–3 in both Supply
+and Exhaust** through ERV IN. Recovery remains disabled. Permanent electrical
+installation and controller-loss behavior are not yet validated.
 
-## V1 scope
+## Home Assistant controls
 
-- Requested fan: independent on/off and speeds 1–3.
-- Requested airflow mode: Supply or Exhaust.
-- Optional experimental Recovery: alternate phases every 700 transmitted frames.
-- Separate RX observation: last decoded OUT frame and whether traffic is fresh.
-- Explicit control-frame enable switch; disabled at every boot.
+1. Enable **Enable control frames**. This starts repeating OFF, not the fan.
+2. Select **Requested airflow mode**: Supply or Exhaust.
+3. Open **Requested fan** for on/off and three-speed control.
+4. To stop, turn the fan OFF before disabling control frames.
 
-Night mode, native humidity thresholds/readings, passive ventilation, filter
-status, and simultaneous physical-remote control are out of scope.
+The fan reports requested state, not measured airflow. Mode or speed-only
+changes while off do not power on; an explicit ON request is required.
+Every reboot starts OFF, speed 1, Supply, with control frames disabled.
+Wi-Fi/API loss does not deliberately reboot the Nano; an armed local stream
+continues while it runs.
 
-The fan entity is **requested state**, not measured motor feedback. Mode changes
-and speed-only commands while off do not power on. A Home Assistant action that
-explicitly includes `state: on` does power on when armed. Settings are not
-restored across reboots; boot defaults are OFF, speed 1, Supply, transmission
-disabled. Wi-Fi/API loss does not deliberately reboot the controller; the local
-stream continues while the ESP32 is running and armed.
+**Disabling control frames is not a stop command or electrical disconnect.**
+The ERV may retain its last state after transmission loss; this is untested.
+TX still drives idle HIGH while disarmed. There is no proven controller-loss
+failsafe.
 
-## Board and signal allocation
+The deployed `lev-haos` dashboard entry is **eco-flo-bedroom.yaml**.
+Choose **Logs → On the network** to view DEBUG logs; no Install/flash is needed.
+Its thin wrapper is maintained in
+[infra](https://github.com/alexlmiller/infra/blob/main/roles/esphome_devices/files/devices/eco-flo-bedroom.yaml).
+Standard Wi-Fi, API encryption, OTA and fallback-AP secrets are inherited.
 
-The NanoC6 has enough pins for control **and** monitoring:
+## Hardware
 
-| Proposed pin | Logical role | ERV connection, through an appropriate interface |
+| NanoC6 pin | Role | Control-board terminal |
 | --- | --- | --- |
-| GPIO1 / Grove white | UART TX | IN |
-| GPIO2 / Grove yellow | UART RX | OUT |
+| GPIO1 / Grove white | TX | IN |
+| GPIO2 / Grove yellow | Optional protected RX | OUT |
+| Grove black | Signal reference | GND, subject to grounding/isolation review |
 
-These are independent directions of one full-duplex UART. Monitoring adds one
-signal GPIO, not another pair. The M5Stack ATOM and Seeed options can also be
-considered, but their exact models must be identified before choosing pins.
-Source: [official NanoC6 pin map](https://docs.m5stack.com/en/core/M5NanoC6).
+This is the logical pin map, not a validated direct-wire installation. The
+successful bench test used TX and GND only, with separate USB power; RX and
+Grove red were disconnected. No XP1 relay or IR tap is needed for core control.
 
-This table is a **logical allocation, not authorization for a direct hookup**.
-ESP32 GPIOs are 3.3 V signals; the ERV controller was measured at 5 V. An input
-protection/level-conversion interface is required for RX, and the electrical
-drive requirements of IN still need establishing. Isolation, power source,
-interface polarity, and grounding must be settled before connecting the two.
-The Grove red wire is 5 V power; it is not another signal or an approved ERV
-power input. No internal ERV power tap is selected in this prototype.
+ESP32 GPIOs are 3.3 V and are not 5 V-tolerant; the ERV controller was measured
+at 5 V. OUT needs a suitable protection/level-conversion interface before RX
+connection. Permanent IN drive, power supply, isolation and grounding still
+need verification. Disconnect mains before changing wiring. Use the control
+board's labeled IN/OUT/GND, not terminal numbers alone; never join two outputs.
+No internal 5 V tap is approved, and USB and ERV-derived power must not be
+paralleled without reviewing backfeed protection. Meter averages and continuity
+checks do not establish pulse peaks or mains-rated isolation.
 
-For the first flash, use USB power with the Grove plug removed from the Nano.
-Finding a pad that measures 5 V is not enough to approve it as a supply: its
-available current, regulation, isolation and return path must be checked first.
-Do not parallel an ERV-derived 5 V supply and USB power before reviewing the
-power paths/backfeed protection. The Nano's 5 V power connection does not make
-its signal GPIOs 5 V-tolerant; see
-[Espressif's GPIO voltage guidance](https://docs.espressif.com/projects/esp-faq/en/latest/hardware-related/hardware-design.html#what-is-the-voltage-tolerance-of-gpios-of-esp-chips).
+References: [NanoC6 pin map](https://docs.m5stack.com/en/core/M5NanoC6),
+[ESP GPIO voltage limits](https://docs.espressif.com/projects/esp-faq/en/latest/hardware-related/hardware-design.html#what-is-the-voltage-tolerance-of-gpios-of-esp-chips).
 
-The original recordings are inverted **as captured**, but a TX-only change to
-**non-inverted** output produced the expected physical ERV response in the
-2026-09-10 connected test. Non-inverted TX is now the default; RX remains at its
-separate as-captured inverted setting. The discrepancy with the original OUT
-capture has not been explained, and successful control does not validate RX.
-TX and RX inversion remain separately configurable because an interface stage
-can change polarity. Meter averages do not establish waveform peaks or prove
-electrical safety; verify both sides of the chosen installation interface.
+## Protocol and configuration
 
-Use the **control board's labeled IN/OUT/GND terminals**. The mains PCB also has
-an XT1 marking; terminal-block numbers alone are not sufficient identification.
-Never connect ESP TX to ERV OUT, and do not loop ERV OUT directly back to IN.
+Packets are `05 STATE CHECK`, where `CHECK = 05 + STATE` (hex). OFF is
+`05 00 05`; Supply uses states `19/1A/1B`, Exhaust `09/0A/0B` for speeds 1–3.
+The working transmitter uses **618 baud, 8E2, non-inverted TX, 97 ms cadence**.
+618 baud is bench-derived, not a manufacturer's specification.
 
-## How the prototype behaves
+Original OUT captures decode inverted; RX retains that independent candidate
+setting. The polarity discrepancy is unresolved, and working TX does not
+validate RX. OUT diagnostics are observation only, never acknowledgement or
+motor feedback. They become stale after two seconds without a valid frame.
+No RX connection is needed for control.
 
-1. Boot: receive monitoring runs; no control frames are sent.
-2. Enable control frames: begins repeating OFF. It does not start the fan.
-3. Select airflow mode/speed, then explicitly turn Requested fan on.
-4. Turn Requested fan off: repeats `05 00 05` while control remains enabled.
-5. Disable control frames: stops sending and clears requested power.
+| Substitution | Default |
+| --- | --- |
+| `tech_name`, `display_name` | `eco-flo-bedroom`, `Bedroom ERV` |
+| `erv_board`, `erv_variant` | `esp32-c6-devkitc-1`, `esp32c6` |
+| `erv_tx_pin`, `erv_rx_pin` | `GPIO1`, `GPIO2` |
+| `erv_tx_inverted`, `erv_rx_inverted` | `false`, `true` |
+| `erv_baud`, `erv_frame_interval` | `618`, `97ms` |
+| `erv_enable_recovery` | `false` |
+| `erv_log_level`, `erv_diagnostics_interval` | `DEBUG`, `5s` |
+| `erv_log_uart`, `erv_log_baud` | `USB_SERIAL_JTAG`, `115200` |
 
-**Muting TX is not a stop command.** The ERV may retain its last state when
-frames stop, the ESP32 resets, or the cable fails; that behavior is untested.
-Use the fan OFF command and confirm the actual response before muting during
-bench tests. There is no proven loss-of-controller failsafe yet.
+The deadline scheduler avoids the original 112 ms component-loop rounding;
+late callbacks send once without catch-up bursts. Blocking work can still
+delay packets. Timing overrides are experimental: framing must remain 8E2,
+baud 550–700, with at least 48 bit cells per frame interval.
 
-The enable switch gates packets, **not the electrical connection**: UART setup
-still drives an idle voltage on TX. Start monitor-only testing with IN physically
-disconnected. Disabling the switch does not make the TX pin high impedance.
+Experimental recovery alternates every 700 transmitted frames. Phase B at
+speeds 2/3 is inferred, not captured or physically verified. Phase restarts on
+power/mode changes are implementation policy, not established factory behavior.
+Keep recovery disabled until separately tested. Night/humidity policy, passive
+ventilation, filter status and simultaneous remote control are out of scope.
 
-Packets use a re-armed one-shot scheduler deadline, independent of ESPHome's
-normal component polling interval. Late callbacks send once and schedule from
-that transmission, without catch-up bursts. This is not a hard-real-time timer;
-blocking work can still delay packets. State
-changes take effect at the next interval (normally within about 97 ms plus loop
-latency); an already transmitting packet is not interrupted. Repeated frames
-continue even in OFF. RX never changes the requested fan, starts transmission,
-or acts as an acknowledgement. A valid OUT frame only demonstrates bus traffic;
-its relationship to accepted IN commands and physical airflow is unverified.
-After two seconds without a checksum-valid OUT frame, diagnostics become stale.
-No separate RX connection is required to transmit; diagnostics remain stale if
-OUT is absent. RX can run alone with the control gate off.
+## Package import
 
-## Configuration
-
-Canonical local entrypoint: `eco-flow-erv.yaml`. Pinned repo ESPHome version:
-2026.8.2. The package defaults to NanoC6 / ESP-IDF / 4 MB flash.
-
-| Substitution | Default | Purpose |
-| --- | --- | --- |
-| `tech_name`, `display_name` | `eco-flo-bedroom`, `Bedroom ERV` | Identity |
-| `erv_board`, `erv_variant` | `esp32-c6-devkitc-1`, `esp32c6` | Board overrides |
-| `erv_tx_pin`, `erv_rx_pin` | `GPIO1`, `GPIO2` | Signal pins |
-| `erv_tx_inverted`, `erv_rx_inverted` | `false`, `true` | Bench-working TX; separate as-captured RX candidate |
-| `erv_baud` | `618` | Measured timing candidate; not proven nominal baud |
-| `erv_frame_interval` | `97ms` | Frame start cadence |
-| `erv_enable_recovery` | `false` | Expose experimental recovery option |
-| `erv_log_level` | `DEBUG` | Bench detail; INFO, VERBOSE and VERY_VERBOSE also tested |
-| `erv_log_uart`, `erv_log_baud` | `USB_SERIAL_JTAG`, `115200` | NanoC6 USB logs, separate from ERV UART |
-| `erv_diagnostics_interval` | `5s` | Periodic DEBUG summary (1–60 seconds) |
-
-UART uses 8 data bits, even parity, 2 stop bits. The component rejects other
-framing at validation; runtime setup rejects baud outside 550–700 or intervals
-shorter than 48 bit times. Tuning these values is a bench experiment, not a
-claim that every combination is accepted by the ERV. Nested fan options include
-`out_timeout` (default `2s`) and `recovery_phase_packets` (default `700`).
-
-Recovery starts in phase A on power-on or a mode change. Speed-only changes
-preserve its phase/count. Those restart rules are **our implementation policy**,
-not measured factory behavior. Delayed loops extend a phase rather than sending
-queued catch-up packets. Phase B at speeds 2 and 3 is inferred, not captured;
-this is why recovery requires explicit opt-in. Absolute phase direction may
-depend on the ERV's jumper configuration; do not label it verified intake/exhaust.
-
-### Local validation and compile
-
-From the repository root, using its isolated Python environment:
-
-```sh
-python -m pip install -r requirements.txt
-cp secrets.example.yaml eco-flow-erv/secrets.yaml
-esphome config eco-flow-erv/eco-flow-erv.yaml
-esphome compile eco-flow-erv/eco-flow-erv.yaml
-python eco-flow-erv/tests/test_config.py
-c++ -std=c++17 -Wall -Wextra -Werror eco-flow-erv/tests/test_protocol.cpp -o /tmp/erv-protocol-test
-/tmp/erv-protocol-test
-```
-
-The example secrets are placeholders for validation, **not flash-ready Wi-Fi/API
-credentials**. The generated build is not ready to install in the ERV. Compile
-does not flash. Tests cover captured/inferred fixtures separately, parser
-resynchronization, off-state independence, arming, recovery scheduling, delayed
-loops, and timer wrap.
-
-Local validation on 2026-09-09, including bench logging: all 15 configuration tests and the sanitized C++
-protocol/state-machine suite passed; the NanoC6 ESP-IDF firmware compiled with
-ESPHome 2026.8.2. A subsequent user-approved USB-only flash with the Grove plug
-disconnected passed write/hash verification. Wi-Fi, encrypted API access and
-boot defaults were verified; diagnostics showed control OFF and TX=0. This
-does not verify IN acceptance or electrical compatibility. No ERV connection,
-control commands, or OTA deployment was performed. See the dated flash entry
-in BENCH-NOTES.md for details and the unsuccessful pre-flash backup attempt.
-
-An analyzer-only timing test later that day found the original component-loop
-scheduling stretched the requested 97 ms interval to about 112 ms. The deadline
-timer fix passed the same tests, compiled, and was uploaded by user-approved
-OTA with the Nano disconnected from the ERV. Actual wire captures then verified
-OFF and all six Supply/Exhaust packets at approximately 97 ms, plus idle output
-at boot and after disarming. This validates the standalone transmitter, **not**
-ERV IN acceptance or electrical compatibility. Captures and results are in
-[`captures/2026-09-09-nano-timing/`](captures/2026-09-09-nano-timing/).
-
-On 2026-09-10, a user-approved OTA changed TX inversion only, leaving 618 baud,
-8E2, 97 ms cadence and standard credentials unchanged. The new build and disarmed
-boot were verified over the encrypted API. During the manual HA test, logs
-showed OFF followed by Supply ON at speed 3; Alex confirmed the physical unit
-responded exactly as expected. Alex then completed the requested test of all
-three speeds in both Supply and Exhaust and confirmed that all worked. The
-package now defaults to that working TX polarity. This verifies the requested
-core control functions on this unit, not electrical-interface safety, recovery,
-or a loss-of-controller failsafe. The complete matrix is user-observed physical
-verification, not a new instrumented capture or airflow measurement.
-
-### Bench logging
-
-USB serial logging is enabled explicitly on the NanoC6's native USB peripheral;
-it does not consume GPIO1/GPIO2 or send log text to the ERV. Other board variants
-may need a different `erv_log_uart`; never choose a logger UART that shares the
-ERV signal pins. Set `erv_log_baud: '0'` for network-only logging later.
-See [ESPHome logger documentation](https://esphome.io/components/logger/).
-
-The default DEBUG build logs:
-
-- Accepted power/speed/mode requests, ignored ON requests while disarmed, and
-  changes in the queued TX state (including experimental recovery flips).
-- Changes in decoded OUT frames, and the transition to stale OUT traffic.
-- Every five seconds: cumulative TX/RX frame counts, RX bytes, rejected checksum
-  candidates, unknown-state count, OUT freshness/age, and TX queue cadence.
-
-`bad_candidates` counts rejected **05-prefixed three-byte windows**, not an
-exact lost-frame or UART parity-error count. It persists across parser resets.
-TX times describe calls into the UART driver, not measured wire edges or ERV
-acceptance; RX times describe software receipt, not physical motor changes.
-The maximum TX gap is per diagnostics window, excluding deliberate disarming.
-
-For a short packet-by-packet session, override `erv_log_level: VERBOSE` and
-recompile. VERY_VERBOSE additionally logs raw RX bytes, useful when baud or
-polarity prevents valid frames. Higher levels increase traffic and can disturb
-timing; return to DEBUG after diagnosing. No RX-to-TX automatic response is added.
-
-After the hardware and credential gates are satisfied, USB logs can be viewed
-with `esphome logs eco-flow-erv/eco-flow-erv.yaml --device <confirmed-USB-port>`.
-The console is log output, not a command interpreter; controls still use the
-authenticated ESPHome API. A real credential source is required before a useful
-control-test flash; do not install the example-secret build as a network device.
-
-### Remote package wrapper (after the component is published)
-
-Local component paths resolve relative to the consuming YAML, so a remote
-wrapper must override the source as well as import the package. Use the same
-reviewed ref for both; `main` is appropriate only once this package is merged:
+The remote wrapper must override the local component source. Keep both refs
+aligned and use a single-source mapping so it replaces the local source list:
 
 ```yaml
 packages:
@@ -231,27 +107,36 @@ external_components:
   components: [eco_flow_erv]
 ```
 
-Keep the single-source mapping form shown above: it replaces the package's
-local-source list during merging rather than appending another source. This
-merge shape is exercised by the wrapper configuration tests. No infra wrapper
-or lev-haos deployment has been added yet.
+## Development and logs
 
-## Remaining bench and installation checks
+Use the pinned ESPHome 2026.8.2 environment from the repository root. For a
+fresh checkout, copy `secrets.example.yaml` to `eco-flow-erv/secrets.yaml` for
+validation only; do not overwrite existing secrets or flash placeholder keys.
 
-1. Select/verify the electrical interface and power/ground arrangement.
-2. If OUT monitoring is wanted, verify protected ESP RX reproduces known OUT
-   packets and stale detection with IN disconnected. RX polarity and clock
-   compatibility remain separate from the successful TX test.
-3. Capture the now-working non-inverted TX through the selected interface and
-   verify actual wire timing, parity, stop bits, idle level, and output levels.
-4. Repeat the now-passed on/off and six-state Supply/Exhaust test if the final
-   interface, unit, or airflow jumper configuration changes. The current
-   physical result does not establish other units' jumper/direction mapping.
-5. Test controller loss/reset/disconnection before any unattended installation.
-6. Recovery remains disabled and needs a separately approved test of phase
-   reversals and inferred speed-2/3 packets before it is enabled for use.
-   Night/humidity settings do not block core testing.
+```sh
+esphome config eco-flow-erv/eco-flow-erv.yaml
+python eco-flow-erv/tests/test_config.py
+c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+  eco-flow-erv/tests/test_protocol.cpp -o /tmp/erv-protocol-test
+/tmp/erv-protocol-test
+esphome compile eco-flow-erv/eco-flow-erv.yaml
+```
 
-See [BENCH-NOTES.md](BENCH-NOTES.md) for raw evidence and remaining uncertainty.
-The original [DESIGN.md](DESIGN.md) is historical and contains superseded wiring
-assumptions; do not use it as a build procedure.
+Compile does not flash. Tests cover protocol fixtures, parser resynchronization,
+independent power/mode, arming, polarity overrides, cadence and timer wrap.
+
+DEBUG logs include state changes and five-second TX/RX/cadence summaries.
+VERBOSE adds packets; VERY_VERBOSE adds raw RX bytes and may disturb timing.
+Counters describe software queues, not measured wire timing or command success.
+USB logging uses the native USB peripheral, not the ERV UART; use network logs
+to avoid USB serial-open resets.
+
+## Remaining checks
+
+- Validate the permanent electrical interface/power arrangement and wire levels.
+- Test controller reset, power loss and disconnection before unattended use.
+- If wanted, validate protected OUT monitoring and experimental recovery.
+
+Capture tables, board photos and the dated test history are in
+[BENCH-NOTES.md](BENCH-NOTES.md) and [research-pics/](research-pics/).
+[DESIGN.md](DESIGN.md) preserves superseded proposals, not build instructions.

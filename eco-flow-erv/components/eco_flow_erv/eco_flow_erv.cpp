@@ -32,7 +32,7 @@ void EcoFlowFan::setup() {
   this->publish_requested_();
   if (this->active_ != nullptr) this->active_->publish_state(false);
   if (this->observed_ != nullptr) this->observed_->publish_state("No OUT data");
-  ESP_LOGW(TAG, "Experimental IN candidate; control disabled. UART TX still drives its idle level");
+  ESP_LOGW(TAG, "Control disabled. UART TX still drives its idle level");
 }
 
 void EcoFlowFan::dump_config() {
