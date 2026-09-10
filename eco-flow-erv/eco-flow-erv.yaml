@@ -1,5 +1,5 @@
 # Experimental prototype: do not connect GPIOs directly to the ERV.
-# See README.md for the unverified electrical interface and IN test gate.
+# See README.md for bench-verified control and remaining electrical checks.
 substitutions:
   tech_name: eco-flo-bedroom
   display_name: Bedroom ERV
@@ -7,7 +7,8 @@ substitutions:
   erv_variant: esp32c6
   erv_tx_pin: GPIO1
   erv_rx_pin: GPIO2
-  erv_tx_inverted: 'true'
+  # Non-inverted TX produced the expected physical response on 2026-09-10.
+  erv_tx_inverted: 'false'
   erv_rx_inverted: 'true'
   erv_baud: '618'
   erv_frame_interval: 97ms

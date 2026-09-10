@@ -3,7 +3,9 @@
 For Alex's CFM Eco-Flo / Vents TwinFresh Comfo RA1-50-2 bedroom ERV.
 Related: [issue #7](https://github.com/alexlmiller/esphome-projects/issues/7).
 
-**OUT decoding is established; ESP32 control through IN is not yet proven.**
+**OUT decoding is established; basic HA-to-ERV IN control worked on the bench
+with non-inverted TX on 2026-09-10.** The complete speed/direction matrix and
+controller-loss behavior still require physical verification.
 This is bench firmware, not a validated unattended installation. Nothing here
 automatically flashes, deploys, or connects to the ERV.
 
@@ -55,10 +57,14 @@ power paths/backfeed protection. The Nano's 5 V power connection does not make
 its signal GPIOs 5 V-tolerant; see
 [Espressif's GPIO voltage guidance](https://docs.espressif.com/projects/esp-faq/en/latest/hardware-related/hardware-design.html#what-is-the-voltage-tolerance-of-gpios-of-esp-chips).
 
-The recordings are inverted **as captured**. TX and RX inversion are separately
-configurable because a level-conversion/isolation stage can change polarity.
-The multimeter averages do not establish waveform peaks or resolve the apparent
-polarity discrepancy with the trace. Verify both sides of the chosen interface.
+The original recordings are inverted **as captured**, but a TX-only change to
+**non-inverted** output produced the expected physical ERV response in the
+2026-09-10 connected test. Non-inverted TX is now the default; RX remains at its
+separate as-captured inverted setting. The discrepancy with the original OUT
+capture has not been explained, and successful control does not validate RX.
+TX and RX inversion remain separately configurable because an interface stage
+can change polarity. Meter averages do not establish waveform peaks or prove
+electrical safety; verify both sides of the chosen installation interface.
 
 Use the **control board's labeled IN/OUT/GND terminals**. The mains PCB also has
 an XT1 marking; terminal-block numbers alone are not sufficient identification.
@@ -104,7 +110,7 @@ Canonical local entrypoint: `eco-flow-erv.yaml`. Pinned repo ESPHome version:
 | `tech_name`, `display_name` | `eco-flo-bedroom`, `Bedroom ERV` | Identity |
 | `erv_board`, `erv_variant` | `esp32-c6-devkitc-1`, `esp32c6` | Board overrides |
 | `erv_tx_pin`, `erv_rx_pin` | `GPIO1`, `GPIO2` | Signal pins |
-| `erv_tx_inverted`, `erv_rx_inverted` | `true`, `true` | As-captured candidate polarity |
+| `erv_tx_inverted`, `erv_rx_inverted` | `false`, `true` | Bench-working TX; separate as-captured RX candidate |
 | `erv_baud` | `618` | Measured timing candidate; not proven nominal baud |
 | `erv_frame_interval` | `97ms` | Frame start cadence |
 | `erv_enable_recovery` | `false` | Expose experimental recovery option |
@@ -163,6 +169,14 @@ at boot and after disarming. This validates the standalone transmitter, **not**
 ERV IN acceptance or electrical compatibility. Captures and results are in
 [`captures/2026-09-09-nano-timing/`](captures/2026-09-09-nano-timing/).
 
+On 2026-09-10, a user-approved OTA changed TX inversion only, leaving 618 baud,
+8E2, 97 ms cadence and standard credentials unchanged. The new build and disarmed
+boot were verified over the encrypted API. During the manual HA test, logs
+showed OFF followed by Supply ON at speed 3; Alex confirmed the physical unit
+responded exactly as expected. The package now defaults to that working TX
+polarity. This is basic IN-control evidence, not full speed/direction coverage,
+electrical-interface certification, or a verified loss-of-controller failsafe.
+
 ### Bench logging
 
 USB serial logging is enabled explicitly on the NanoC6's native USB peripheral;
@@ -219,15 +233,16 @@ local-source list during merging rather than appending another source. This
 merge shape is exercised by the wrapper configuration tests. No infra wrapper
 or lev-haos deployment has been added yet.
 
-## Next hardware gate
+## Remaining bench and installation checks
 
 1. Select/verify the electrical interface and power/ground arrangement.
 2. With IN disconnected, verify ESP RX reproduces known OUT packets and stale
    detection. This also checks RX polarity and clock compatibility.
-3. With the ESP TX isolated from the ERV, capture its OFF/active frames and verify
-   actual wire timing, parity, stop bits, idle level, and interface output levels.
-4. With the interface approved, test IN with repeated OFF, then explicit ON at
-   speed 1. Observe motor response separately from OUT.
+3. Capture the now-working non-inverted TX through the selected interface and
+   verify actual wire timing, parity, stop bits, idle level, and output levels.
+4. With the interface approved, explicitly verify OFF and ON at speed 1; the
+   successful connected test's logged ON request was speed 3, not speed 1.
+   Observe motor response separately from OUT.
 5. Test all six Supply/Exhaust speed combinations and OFF; establish jumper
    dependence, physical direction, and whether OUT follows IN while slaved.
 6. Test controller loss/reset/disconnection and recovery behavior before any

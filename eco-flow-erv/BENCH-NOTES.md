@@ -111,8 +111,8 @@ state, but native policy flags or sensor values have not been decoded.
 - XP1 is six pins/two jumpers. XP5 is motor PWM/DIR/+12, not an approved power
   supply tap. No relay or jumper modification is required by this prototype.
 
-**Not tested:** IN acceptance/wake-up, input electrical requirements, synthetic
-master timing tolerance, slave switch/jumper requirements, OUT behavior while
+**Not tested at the initial OUT-decoding stage:** IN acceptance/wake-up, input
+electrical requirements, synthetic master timing tolerance, slave switch/jumper requirements, OUT behavior while
 slaved, actual response latency/direction, and loss-of-transmission behavior.
 Monitoring OUT must not be advertised as an acknowledgement or fan tachometer.
 
@@ -196,3 +196,56 @@ remains disabled. The original API/Wi-Fi/OTA secret references are unchanged.
 
 Raw pre/post-fix captures and per-state results are preserved in
 [`captures/2026-09-09-nano-timing/`](captures/2026-09-09-nano-timing/).
+
+## Connected voltage comparison and TX-polarity experiment — 2026-09-10
+
+Alex subsequently retried the timing-corrected firmware connected to ERV IN
+and reported no control response. Both physical switches were centered; the
+IR remote still worked. The original ERV capture used D0 and the standalone
+Nano capture used D1 because Alex changed analyzer channels; that difference
+is not evidence of signal inversion.
+
+With repeated OFF frames enabled, Alex measured **1.434 V DC** from standalone
+Nano TX to GND and confirmed the same reading with TX connected to ERV IN.
+This agrees with the predicted average of the inverted OFF waveform and makes
+substantial average-voltage loading less likely. It does not establish pulse
+peaks, edge quality, input thresholds, electrical isolation, or IN acceptance.
+
+At Alex's request, a firmware experiment changes **only TX polarity** using
+the CLI substitution `-s erv_tx_inverted false`. RX stays inverted; bytes,
+618 baud, 8E2, 97 ms frame interval, DEBUG logging, disabled recovery, and
+existing standard secret references are unchanged. The initial test used a CLI
+override; after the physical success reported below, the package default was
+changed to non-inverted TX so subsequent builds retain the working setting.
+
+- Source baseline: `c091ba8`; all 15 configuration tests passed and the
+  non-inverted variant compiled successfully with the existing pinned tools.
+- User-approved OTA succeeded. Read-only encrypted API verification confirmed
+  build time `2026-09-10 06:14:04 -0600` (build config hash `0xeb843046`), the
+  expected Nano identity, and boot defaults: control disabled, requested fan
+  OFF, speed 1, Supply. Initial counters showed TX=0.
+- Non-inverted TX has an idle-high level even while control frames are muted;
+  the control gate still does not make the pin high impedance.
+- During the manual HA test, the Nano logged control arming and `05 00 05` at
+  uptime 61.599 s, then HA requested ON at **speed 3**, Supply, and `05 1B 20`
+  was queued at uptime 70.247 s. The planned speed-1 test was not what HA sent.
+  Queue diagnostics were mostly 97 ms, with one 112 ms window maximum; this
+  variant's actual waveform has not been captured.
+- The agent sent no fan, mode, or arming commands. No checksum-valid OUT data
+  was observed; OUT is not an acknowledgement. The bounded observation ended
+  with HA still requesting Supply, speed 3, control enabled.
+- Both the preceding inverted OTA image and this experimental image are
+  retained locally for rollback/reproduction, not committed because they
+  contain credentials. The rollback is an application image, not a full-chip
+  backup.
+
+Alex then confirmed: **"yes it responded physically exactly as expected"**.
+This establishes basic IN-command acceptance with non-inverted TX in this
+setup, and the polarity-only change resolved the control failure in this test.
+It does not establish that the full six-state speed/direction matrix, recovery,
+RX monitoring, electrical protection, or controller-loss behavior is verified.
+The mismatch with the original as-captured OUT polarity remains unexplained.
+Default and override configuration tests now assert TX and RX polarities
+independently; all 15 tests passed. The saved default's resolved config hash
+matches the running test build (`0xeb843046`). No further OTA is needed merely
+to save the working default.
