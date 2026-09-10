@@ -41,6 +41,7 @@ void EcoFlowFan::dump_config() {
                 unsigned(this->parent_->get_baud_rate()));
   ESP_LOGCONFIG(TAG, "Frame interval: %u ms; OUT timeout: %u ms", unsigned(this->frame_interval_),
                 unsigned(this->out_timeout_));
+  ESP_LOGCONFIG(TAG, "TX uses a deadline timer, independent of the component polling interval");
   ESP_LOGCONFIG(TAG, "Diagnostics: every %u ms at DEBUG; per-frame TX/RX at VERBOSE; raw RX bytes at VERY_VERBOSE",
                 unsigned(this->diagnostics_interval_));
   ESP_LOGCONFIG(TAG, "RX is observation only, not acknowledgement or measured airflow");
@@ -77,6 +78,10 @@ void EcoFlowFan::enable_control(bool enabled) {
     this->has_tx_ = false;
     this->last_tx_gap_ = 0;
     this->max_tx_gap_ = 0;
+    if (enabled)
+      this->schedule_transmit_();
+    else
+      this->cancel_timeout("transmit");
   }
   this->gate_->publish_state(enabled);
   this->publish_requested_();
@@ -165,6 +170,22 @@ void EcoFlowFan::loop() {
     if (this->active_ != nullptr) this->active_->publish_state(false);
     if (this->observed_ != nullptr) this->observed_->publish_state("OUT stale / disconnected");
   }
+  this->log_diagnostics_(now);
+}
+
+void EcoFlowFan::schedule_transmit_() {
+  if (!this->controller_.enabled()) return;
+  // ESPHome 2026.8 services scheduler deadlines independently of its default
+  // 16 ms component polling interval. Polling TX from loop() rounded 97 ms up
+  // to 112 ms on the bench. Keep a single timer, anchored to the last actual
+  // TX, so late callbacks cannot create catch-up bursts or shorten a gap.
+  this->set_timeout("transmit", this->controller_.next_frame_delay(millis()), [this]() { this->transmit_(); });
+}
+
+void EcoFlowFan::transmit_() {
+  // Also guard the callback itself against a canceled/in-flight timer.
+  if (!this->controller_.enabled()) return;
+  const uint32_t now = millis();
   Frame frame;
   if (this->controller_.next_frame(now, frame)) {
     this->write_array(frame);
@@ -182,7 +203,9 @@ void EcoFlowFan::loop() {
     ESP_LOGV(TAG, "TX #%u t=%u ms: %02X %02X %02X gap=%u ms", unsigned(this->tx_frames_), unsigned(now),
              frame[0], frame[1], frame[2], unsigned(this->last_tx_gap_));
   }
-  this->log_diagnostics_(now);
+  // Re-read the clock after queueing/logging: this time counts toward the
+  // next gap. If a timer ran early, reschedule only the remaining delay.
+  this->schedule_transmit_();
 }
 
 }  // namespace esphome::eco_flow_erv

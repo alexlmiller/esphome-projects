@@ -114,5 +114,41 @@ int main() {
   rapid.set_enabled(true);
   assert(!rapid.next_frame(1, received));
   assert(rapid.next_frame(97, received) && received == off);
-  std::cout << "PASS: captured matrix, inferred fixtures, parser, arming, power independence, recovery, timing and wrap\n";
+
+  // Regression: a 97 ms TX check in a 16 ms component loop actually sends
+  // every 112 ms. A scheduler deadline must wake before the next poll.
+  Controller polled;
+  polled.set_enabled(true);
+  assert(polled.next_frame(0, received));
+  for (uint32_t now = 16; now <= 96; now += 16) assert(!polled.next_frame(now, received));
+  assert(polled.next_frame(112, received));
+  Controller timed;
+  timed.set_enabled(true);
+  assert(timed.next_frame_delay(0) == 0);
+  assert(timed.next_frame(0, received));
+  assert(timed.next_frame_delay(96) == 1);
+  assert(!timed.next_frame(96, received));  // Early callback must re-arm.
+  for (uint32_t packet = 1; packet <= 100; ++packet) {
+    const uint32_t after_work = (packet - 1) * 97 + 4;
+    const uint32_t due = after_work + timed.next_frame_delay(after_work);
+    assert(due == packet * 97);  // Time spent logging/queueing does not add drift.
+    assert(timed.next_frame(due, received) && received == off);
+  }
+  assert(timed.next_frame_delay(20000) == 0);
+  assert(timed.next_frame(20000, received));  // Late callback sends once.
+  assert(timed.next_frame_delay(20000) == 97);
+  assert(!timed.next_frame(20000, received));
+  timed.set_enabled(false);
+  assert(!timed.next_frame(20001, received));
+  timed.set_enabled(true);
+  assert(timed.next_frame_delay(20001) == 96);
+  assert(timed.next_frame(20097, received) && received == off);
+
+  Controller deadline_wrap;
+  deadline_wrap.set_enabled(true);
+  assert(deadline_wrap.next_frame(UINT32_MAX - 40, received));
+  assert(deadline_wrap.next_frame_delay(55) == 1);
+  assert(deadline_wrap.next_frame_delay(56) == 0);
+  assert(deadline_wrap.next_frame(56, received));
+  std::cout << "PASS: captured matrix, inferred fixtures, parser, arming, power independence, recovery, deadlines and wrap\n";
 }

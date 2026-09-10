@@ -52,6 +52,8 @@ class EcoFlowFan : public Component, public fan::Fan, public uart::UARTDevice {
   void publish_requested_();
   void receive_(const Frame &frame, uint32_t now);
   void log_diagnostics_(uint32_t now);
+  void schedule_transmit_();
+  void transmit_();
   Controller controller_;
   Parser parser_;
   ControlSwitch *gate_{nullptr};

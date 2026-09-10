@@ -81,7 +81,10 @@ The enable switch gates packets, **not the electrical connection**: UART setup
 still drives an idle voltage on TX. Start monitor-only testing with IN physically
 disconnected. Disabling the switch does not make the TX pin high impedance.
 
-Packets are sent once per scheduler interval without catch-up bursts. State
+Packets use a re-armed one-shot scheduler deadline, independent of ESPHome's
+normal component polling interval. Late callbacks send once and schedule from
+that transmission, without catch-up bursts. This is not a hard-real-time timer;
+blocking work can still delay packets. State
 changes take effect at the next interval (normally within about 97 ms plus loop
 latency); an already transmitting packet is not interrupted. Repeated frames
 continue even in OFF. RX never changes the requested fan, starts transmission,
@@ -150,6 +153,15 @@ boot defaults were verified; diagnostics showed control OFF and TX=0. This
 does not verify IN acceptance or electrical compatibility. No ERV connection,
 control commands, or OTA deployment was performed. See the dated flash entry
 in BENCH-NOTES.md for details and the unsuccessful pre-flash backup attempt.
+
+An analyzer-only timing test later that day found the original component-loop
+scheduling stretched the requested 97 ms interval to about 112 ms. The deadline
+timer fix passed the same tests, compiled, and was uploaded by user-approved
+OTA with the Nano disconnected from the ERV. Actual wire captures then verified
+OFF and all six Supply/Exhaust packets at approximately 97 ms, plus idle output
+at boot and after disarming. This validates the standalone transmitter, **not**
+ERV IN acceptance or electrical compatibility. Captures and results are in
+[`captures/2026-09-09-nano-timing/`](captures/2026-09-09-nano-timing/).
 
 ### Bench logging
 

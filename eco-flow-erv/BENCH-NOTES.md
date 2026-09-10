@@ -149,3 +149,50 @@ firmware images are committed.
 No fan, mode or arming commands were sent, and the Nano was not connected to
 ERV IN, OUT or power. USB-only bring-up is verified; the protected interface,
 isolated TX waveform check and actual IN-control test remain outstanding.
+
+## Standalone TX timing correction and OTA — 2026-09-09, 20:06 MDT
+
+Before this test Alex reported no ERV response to HA commands with the direct
+white/GPIO1-to-IN and black-to-GND hookup. Encrypted API state and counters
+confirmed that control was armed and active packets were queued. This did not
+establish the signal at IN, its electrical compatibility, or packet acceptance.
+
+Alex then disconnected **both** wires from the ERV, left the ERV unplugged,
+powered the Nano separately, and connected only the analyzer. On this hookup
+the signal was **D1**, not D0 used in the original ERV recordings. All eight
+channels were inspected to resolve this numbering difference; D1 alone toggled.
+
+- Original standalone firmware, Supply 2: 27 complete `05 1A 1F` packets,
+  no decoder warnings; median start interval **112.003 ms** (111.955–112.073).
+- Original ERV `test 3/2.sr`: 514 complete packets; median interval
+  **97.182 ms** (93.746–100.527). Its one initial framing warning belongs to
+  the recording's partial opening packet.
+- The component's 97 ms check ran inside ESPHome's default 16 ms component
+  polling loop, explaining seven ticks / 112 ms between packets. TX now uses
+  a single re-armed scheduler deadline. RX and diagnostics remain in `loop()`;
+  no global high-frequency polling, ISR UART writes, or catch-up bursts added.
+- Regression tests cover the 112 ms rounding failure, deadline computation,
+  early/late callbacks, work time, fast disarm/re-arm and timer wrap. All 15
+  configuration tests and ASan/UBSan C++ tests passed. ESPHome 2026.8.2 compiled
+  successfully; user-approved OTA succeeded. The API confirmed the new build
+  time `2026-09-09 20:00:39 -0600` and disarmed/OFF boot defaults.
+- Eight 3-second captures cover initial OFF, all six Supply/Exhaust states,
+  and final OFF: **242 complete checksum-valid packets**, with no parity or
+  framing warnings within the complete-packet spans. Some recordings begin
+  mid-packet and have initial decoder synchronization warnings, retained in
+  the raw data rather than counted as complete-frame failures.
+- Across those captures, per-state median intervals are 96.9995–97.005 ms;
+  overall measured interval range is **96.835–97.242 ms**. Median character
+  start spacing is **19.418 ms**, consistent with 618 baud / 8E2. These are
+  analyzer-clock measurements, not independently calibrated absolute timing.
+- Two 2-second captures verify D1 continuously idle-low at boot and after
+  disarming. Disarmed TX remains electrically driven, not high impedance.
+
+The test explicitly exercised output states with **no ERV connection** and
+finished with requested fan OFF, speed 1, Supply, and control frames disabled.
+No ERV-connected retry has occurred with the corrected timing, and the timing
+mismatch is not yet proven to explain the earlier lack of response. Recovery
+remains disabled. The original API/Wi-Fi/OTA secret references are unchanged.
+
+Raw pre/post-fix captures and per-state results are preserved in
+[`captures/2026-09-09-nano-timing/`](captures/2026-09-09-nano-timing/).

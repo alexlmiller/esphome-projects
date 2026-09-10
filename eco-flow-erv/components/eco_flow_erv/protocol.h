@@ -89,8 +89,15 @@ class Controller {
     if (mode != this->mode_) this->reset_phase_();
     this->mode_ = mode;
   }
+  // Relative deadline for the component's one-shot TX timer. Check enabled()
+  // before scheduling; retain this deadline across a quick disarm/re-arm.
+  uint32_t next_frame_delay(uint32_t now) const {
+    if (!this->sent_) return 0;
+    const uint32_t elapsed = now - this->last_tx_;
+    return elapsed < this->interval_ms_ ? this->interval_ms_ - elapsed : 0;
+  }
   bool next_frame(uint32_t now, Frame &frame) {
-    if (!this->enabled_ || (this->sent_ && uint32_t(now - this->last_tx_) < this->interval_ms_))
+    if (!this->enabled_ || this->next_frame_delay(now) != 0)
       return false;
     this->last_tx_ = now;
     this->sent_ = true;
