@@ -283,3 +283,20 @@ features or an unattended installation can be considered validated.
 Deployed `eco-flo-bedroom.yaml` to the lev-haos ESPHome dashboard. Encrypted
 network logs were verified from both the add-on and its dashboard. No firmware
 flash, shared-secret change, add-on restart or control command was needed.
+
+## Installed RX check — 2026-09-18
+
+Alex reported the unit closed, both IN/OUT connected, and working speed control;
+the OUT-to-Nano connection is direct, not through the purchased PC817 modules.
+A read-only encrypted API sample identified the same Nano and September 10
+firmware (ESPHome 2026.8.2). HA requested Supply, speed 3, with control enabled.
+
+Over 30.048 seconds, RX bytes increased 15,578 → 16,466 (888 bytes), but valid
+frames, rejected checksum candidates, and unknown frames all remained zero.
+OUT stayed `No OUT data`. TX increased 3,818 → 4,128; software queue gaps were
+usually 97 ms, with 113 ms window maxima. This confirms incoming UART bytes,
+not valid decoded packets or an acknowledgement. Polarity/framing or signal
+quality still need investigation; no waveform or raw bytes were captured.
+
+No firmware, polarity, wiring, fan state, or HA registry changes were made by
+this diagnostic check. Direct RX voltage protection remains unverified.

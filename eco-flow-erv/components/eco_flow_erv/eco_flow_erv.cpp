@@ -50,15 +50,27 @@ void EcoFlowFan::dump_config() {
 void EcoFlowFan::publish_requested_() {
   this->state = this->controller_.power();
   this->speed = this->controller_.speed();
+  // Direction describes the request, not measured fan rotation. Recovery has
+  // no single direction, so its opt-in configuration omits this fan trait.
+  this->direction = this->controller_.mode() == Mode::EXHAUST ? fan::FanDirection::REVERSE
+                                                           : fan::FanDirection::FORWARD;
   this->publish_state();
 }
 
 void EcoFlowFan::control(const fan::FanCall &call) {
+  if (this->is_failed()) {
+    ESP_LOGE(TAG, "Fan command ignored: controller setup failed");
+    return;
+  }
   if (call.get_speed().has_value()) this->controller_.set_speed(*call.get_speed());
+  if (call.get_direction().has_value() && !this->recovery_enabled_) {
+    const auto mode = *call.get_direction() == fan::FanDirection::REVERSE ? Mode::EXHAUST : Mode::SUPPLY;
+    this->controller_.set_mode(mode);
+    this->mode_select_->publish_state(static_cast<size_t>(mode));
+  }
   if (call.get_state().has_value()) {
-    if (*call.get_state() && !this->controller_.enabled())
-      ESP_LOGW(TAG, "ON ignored: enable control first (arming starts with OFF frames)");
-    this->controller_.set_power(*call.get_state());
+    const bool started = this->controller_.request_power(*call.get_state());
+    this->sync_control_(started);
   }
   this->publish_requested_();
   ESP_LOGI(TAG, "Request: power=%s speed=%u mode=%s control=%s (not confirmed by ERV)",
@@ -73,6 +85,14 @@ void EcoFlowFan::enable_control(bool enabled) {
   }
   const bool changed = enabled != this->controller_.enabled();
   this->controller_.set_enabled(enabled);
+  this->sync_control_(changed);
+  this->publish_requested_();
+  if (changed) ESP_LOGW(TAG, "%s", enabled ? "Control armed: sending OFF until explicitly turned on"
+                                          : "Control muted; ERV may retain its last state");
+}
+
+void EcoFlowFan::sync_control_(bool changed) {
+  const bool enabled = this->controller_.enabled();
   if (changed) {
     // A deliberately muted interval is not scheduler lateness.
     this->has_tx_ = false;
@@ -84,15 +104,13 @@ void EcoFlowFan::enable_control(bool enabled) {
       this->cancel_timeout("transmit");
   }
   this->gate_->publish_state(enabled);
-  this->publish_requested_();
-  if (changed) ESP_LOGW(TAG, "%s", enabled ? "Control armed: sending OFF until explicitly turned on"
-                                                           : "Control muted; ERV may retain its last state");
 }
 
 void EcoFlowFan::select_mode(size_t index) {
   if (!this->mode_select_->has_index(index) || index > 2) return;
   this->controller_.set_mode(static_cast<Mode>(index));
   this->mode_select_->publish_state(index);
+  this->publish_requested_();
   ESP_LOGI(TAG, "Mode request: %s; power stays %s", mode_name(this->controller_.mode()),
            ONOFF(this->controller_.power()));
   // Neither selecting a direction nor selecting recovery changes power.
@@ -130,6 +148,11 @@ void EcoFlowFan::receive_(const Frame &frame, uint32_t now) {
 void EcoFlowFan::log_diagnostics_(uint32_t now) {
   if (uint32_t(now - this->last_diagnostics_) < this->diagnostics_interval_) return;
   this->last_diagnostics_ = now;
+  if (!this->out_live_ && this->rx_bytes_ != 0 && this->observed_ != nullptr) {
+    this->observed_->publish_state(uint32_t(now - this->last_rx_byte_) < this->out_timeout_
+                                      ? "RX bytes present / no valid OUT frames"
+                                      : "OUT stale / disconnected");
+  }
   const auto rejected = this->parser_.bad_checksum_candidates();
   ESP_LOGD(TAG, "Stats t=%u ms: control=%s TX=%u RX=%u RXbytes=%u bad_candidates=%u unknown=%u OUT=%s",
            unsigned(now), ONOFF(this->controller_.enabled()), unsigned(this->tx_frames_), unsigned(this->rx_frames_),

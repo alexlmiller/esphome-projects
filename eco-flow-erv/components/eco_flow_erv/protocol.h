@@ -83,6 +83,14 @@ class Controller {
     if (next != this->power_) this->reset_phase_();
     this->power_ = next;
   }
+  // A normal fan ON or OFF command takes control without a separate arm step.
+  // Speed/direction-only changes and boot must never call this method.
+  bool request_power(bool power) {
+    const bool started = !this->enabled_;
+    this->set_enabled(true);
+    this->set_power(power);
+    return started;
+  }
   void set_speed(uint8_t speed) {
     if (speed >= 1 && speed <= 3) this->speed_ = speed;
   }

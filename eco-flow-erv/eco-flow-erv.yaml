@@ -99,6 +99,8 @@ fan:
     control_enabled:
       id: erv_control_enabled
       name: Enable control frames
+      # Advanced manual mute/bench control; normal fan commands auto-enable TX.
+      disabled_by_default: true
     airflow_mode:
       id: erv_airflow_mode
       name: Requested airflow mode

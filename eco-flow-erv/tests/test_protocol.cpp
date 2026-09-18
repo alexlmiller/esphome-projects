@@ -82,6 +82,38 @@ int main() {
   assert(c.next_frame(20001, received) && received == off);
 
   Controller recovery;
+  // Normal HA power commands auto-arm, but never restore power at boot.
+  Controller automatic;
+  automatic.set_speed(3);
+  automatic.set_mode(Mode::EXHAUST);
+  assert(!automatic.enabled() && !automatic.power());
+  assert(!automatic.next_frame(0, received));
+  assert(automatic.request_power(true));
+  assert(automatic.enabled() && automatic.power());
+  assert(automatic.next_frame(0, received) && received == exhaust[2]);
+  assert(!automatic.request_power(true));  // Idempotent; no timer reset/burst.
+  assert(!automatic.next_frame(1, received));
+  assert(!automatic.request_power(false));
+  assert(automatic.enabled() && !automatic.power());
+  assert(automatic.next_frame(97, received) && received == off);
+  automatic.set_mode(Mode::SUPPLY);
+  automatic.set_speed(2);
+  assert(!automatic.power());
+  assert(automatic.next_frame(194, received) && received == off);
+  automatic.set_enabled(false);
+  assert(automatic.request_power(true));  // An explicit ON resumes after mute.
+  assert(!automatic.next_frame(195, received));
+  assert(automatic.next_frame(291, received) && received == supply[1]);
+
+  Controller stop_from_boot;
+  assert(stop_from_boot.request_power(false));  // OFF must also reach the ERV.
+  assert(stop_from_boot.enabled() && !stop_from_boot.power());
+  assert(stop_from_boot.next_frame(0, received) && received == off);
+  stop_from_boot.set_enabled(false);
+  assert(stop_from_boot.request_power(false));
+  assert(!stop_from_boot.next_frame(1, received));
+  assert(stop_from_boot.next_frame(97, received) && received == off);
+
   recovery.set_enabled(true);
   recovery.set_mode(Mode::RECOVERY);
   recovery.set_power(true);

@@ -41,6 +41,13 @@ class ConfigurationTests(unittest.TestCase):
         output = self.check_config()
         self.assertRegex(output, r"tx_pin:\n\s+number: (?:1|GPIO1)\n\s+inverted: false\n")
         self.assertRegex(output, r"rx_pin:\n\s+number: (?:2|GPIO2)\n\s+inverted: true\n")
+        self.assertIn("name: Requested fan", output)  # Preserve HA identity.
+        self.assertRegex(output, r"name: Enable control frames\n\s+disabled_by_default: true")
+
+    def test_gate_can_be_exposed_for_bench_use(self):
+        self.check_config(
+            "fan:\n  - id: !extend erv\n    control_enabled:\n      disabled_by_default: false\n"
+        )
 
     def test_recovery_opt_in(self):
         self.check_config("substitutions:\n  erv_enable_recovery: 'true'\n")

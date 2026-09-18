@@ -66,6 +66,7 @@ async def to_code(config):
     cg.add(var.set_phase_packets(config["recovery_phase_packets"]))
     cg.add(var.set_out_timeout(config["out_timeout"]))
     cg.add(var.set_diagnostics_interval(config["diagnostics_interval"]))
+    cg.add(var.set_recovery_enabled(config["enable_recovery"]))
 
     gate = await switch.new_switch(config["control_enabled"], var)
     cg.add(var.set_control_switch(gate))
