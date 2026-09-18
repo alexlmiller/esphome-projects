@@ -300,3 +300,23 @@ quality still need investigation; no waveform or raw bytes were captured.
 
 No firmware, polarity, wiring, fan state, or HA registry changes were made by
 this diagnostic check. Direct RX voltage protection remains unverified.
+
+## HA controls branch preview — 2026-09-18
+
+Deployed `codex/erv-ha-controls` (`184d399`) through the lev-haos dashboard,
+built with ESPHome 2026.9.0. PR #13 remains unmerged. Both live package and
+component refs point to the branch; the committed infra wrapper still uses
+`main`, so an infra redeploy would replace this temporary preview configuration.
+
+Explicit fan OFF from disarmed boot enabled repeated stop frames; fan ON
+restored Supply/speed 3 without a gate command. HA shows three speeds and
+direction. Entity IDs were preserved and the diagnostic control switch was
+hidden through HA settings, not switched off. Physical re-verification of this
+build is separate from these API/log checks.
+
+RX remained unverified: the first branch build received one byte then no more,
+with zero valid frames. A receive-only non-inverted test received zero bytes
+and zero frames during a 25-second sample. TX settings were unchanged. This
+does not establish a cause; it also differs from the earlier 2026.8.2 sample.
+The unsuccessful RX override was removed and the original inverted-RX branch
+image restored. No protected interface or electrical safety validation occurred.
