@@ -10,31 +10,25 @@ installation and controller-loss behavior are not yet validated.
 ## Home Assistant controls
 
 Open **Requested fan** for on/off, three speeds, and direction:
-**Forward = Supply**, **Reverse = Exhaust**. ON/OFF automatically enables the
-command stream; OFF keeps repeating the stop command. No separate arming step
-is needed. The existing **Requested airflow mode** selector remains synchronized
-for named Supply/Exhaust choices and compatibility with existing automations.
+**Forward = Supply**, **Reverse = Exhaust**. The Nano sends a command frame
+every 97 ms for as long as it runs: the requested speed when ON, the stop
+command when OFF. There is no arming step or mute switch. The **Requested
+airflow mode** selector stays synchronized for named Supply/Exhaust choices and
+compatibility with existing automations.
 
 Entity names/IDs are unchanged to preserve HA history and automations. Optional
 HA display-name overrides can shorten them without changing the entity IDs.
 
 The fan reports requested state, not measured airflow. Mode or speed-only
 changes while off do not power on; an explicit ON request is required.
-Every reboot starts OFF, speed 1, Supply, with control frames disabled until an
-explicit fan ON/OFF command. Reboot does not itself send a stop command.
-Wi-Fi/API loss does not deliberately reboot the Nano; an armed local stream
+Every boot starts OFF, speed 1, Supply, and streams the stop command at once,
+so after a Nano reboot or OTA update the ERV stays stopped until HA turns it
+back on. A requested ON is never restored after a reboot.
+Wi-Fi/API loss does not deliberately reboot the Nano; the local stream
 continues while it runs.
 
-**Enable control frames** is now an advanced diagnostic switch, disabled by
-default for new HA discoveries. Existing installations retain their HA registry
-setting; hide it there if unwanted. It is no longer required for normal use.
-Manually enabling it still starts with OFF; the next fan ON/OFF command resumes
-transmission after a manual mute.
-
-**Disabling control frames is not a stop command or electrical disconnect.**
-The ERV may retain its last state after transmission loss; this is untested.
-TX still drives idle HIGH while disarmed. There is no proven controller-loss
-failsafe.
+The ERV may retain its last state if the stream stops (Nano unpowered or
+crashed); this is untested. There is no proven controller-loss failsafe.
 
 The deployed `lev-haos` dashboard entry is **eco-flo-bedroom.yaml**.
 Choose **Logs → On the network** to view DEBUG logs; no Install/flash is needed.

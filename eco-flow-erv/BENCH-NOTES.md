@@ -320,3 +320,19 @@ and zero frames during a 25-second sample. TX settings were unchanged. This
 does not establish a cause; it also differs from the earlier 2026.8.2 sample.
 The unsuccessful RX override was removed and the original inverted-RX branch
 image restored. No protected interface or electrical safety validation occurred.
+
+## Physical HA test and control-switch removal — 2026-10-31
+
+After the Nano came back online on the `184d399` branch build, Alex physically
+confirmed each step through HA's **Requested fan**: Supply speed 1 → 2 → 3,
+reverse to Exhaust 3 → 2 → 1, OFF, then Supply speed 1. A final OFF was sent.
+Fan ON and OFF both enabled the control stream without the diagnostic switch,
+which stayed on through the OFF interval (stop frames repeating). Changing
+direction while off left the fan off and moved the airflow selector.
+
+HA rounds a fan percentage up to the next speed: 33/66/100 % select speeds
+1/2/3. A 67 % request briefly selected speed 3 during the test.
+
+Alex then asked to remove **Enable control frames**. The Nano now streams from
+boot (OFF until a fan ON request) and has no mute, so a reboot or OTA leaves
+the ERV stopped. This build has not been physically verified yet.

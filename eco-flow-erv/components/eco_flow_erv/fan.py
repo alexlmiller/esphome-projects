@@ -1,31 +1,22 @@
 import esphome.codegen as cg
-from esphome.components import binary_sensor, fan, select, switch, text_sensor, uart
+from esphome.components import binary_sensor, fan, select, text_sensor, uart
 import esphome.config_validation as cv
 from esphome.const import CONF_RESTORE_MODE, ENTITY_CATEGORY_DIAGNOSTIC
 
 DEPENDENCIES = ["uart", "esp32"]
-AUTO_LOAD = ["binary_sensor", "select", "switch", "text_sensor"]
+AUTO_LOAD = ["binary_sensor", "select", "text_sensor"]
 
 ns = cg.esphome_ns.namespace("eco_flow_erv")
 EcoFlowFan = ns.class_("EcoFlowFan", cg.Component, fan.Fan, uart.UARTDevice)
-ControlSwitch = ns.class_("ControlSwitch", switch.Switch)
 ModeSelect = ns.class_("ModeSelect", select.Select)
 
 CONFIG_SCHEMA = (
     fan.fan_schema(EcoFlowFan)
     .extend({
-        # The prototype never restores commands or arms itself after a reboot.
+        # Frames always stream; every boot sends OFF and never restores ON.
         cv.Optional(CONF_RESTORE_MODE, default="NO_RESTORE"): cv.enum(
             {"NO_RESTORE": fan.FanRestoreMode.NO_RESTORE}, upper=True
         ),
-        cv.Required("control_enabled"): switch.switch_schema(
-            ControlSwitch, block_inverted=True,
-            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-        ).extend({
-            cv.Optional(CONF_RESTORE_MODE, default="ALWAYS_OFF"): cv.enum(
-                {"ALWAYS_OFF": switch.SwitchRestoreMode.SWITCH_ALWAYS_OFF}, upper=True
-            ),
-        }),
         cv.Required("airflow_mode"): select.select_schema(ModeSelect),
         cv.Optional("enable_recovery", default=False): cv.boolean,
         cv.Optional("frame_interval", default="97ms"): cv.All(
@@ -68,8 +59,6 @@ async def to_code(config):
     cg.add(var.set_diagnostics_interval(config["diagnostics_interval"]))
     cg.add(var.set_recovery_enabled(config["enable_recovery"]))
 
-    gate = await switch.new_switch(config["control_enabled"], var)
-    cg.add(var.set_control_switch(gate))
     options = ["Supply", "Exhaust"]
     if config["enable_recovery"]:
         options.append("Recovery (experimental)")

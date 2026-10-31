@@ -96,11 +96,6 @@ fan:
     frame_interval: ${erv_frame_interval}
     enable_recovery: ${erv_enable_recovery}
     diagnostics_interval: ${erv_diagnostics_interval}
-    control_enabled:
-      id: erv_control_enabled
-      name: Enable control frames
-      # Advanced manual mute/bench control; normal fan commands auto-enable TX.
-      disabled_by_default: true
     airflow_mode:
       id: erv_airflow_mode
       name: Requested airflow mode

@@ -15,7 +15,6 @@ static const char *mode_name(Mode mode) {
   return "Unknown";
 }
 
-void ControlSwitch::write_state(bool state) { this->parent_->enable_control(state); }
 void ModeSelect::control(size_t index) { this->parent_->select_mode(index); }
 
 void EcoFlowFan::setup() {
@@ -26,13 +25,14 @@ void EcoFlowFan::setup() {
     this->mark_failed();
     return;
   }
-  this->controller_.set_enabled(false);
-  this->gate_->publish_state(false);
   this->mode_select_->publish_state(size_t(0));
   this->publish_requested_();
   if (this->active_ != nullptr) this->active_->publish_state(false);
   if (this->observed_ != nullptr) this->observed_->publish_state("No OUT data");
-  ESP_LOGW(TAG, "Control disabled. UART TX still drives its idle level");
+  // Frames stream for as long as the Nano runs; boot sends OFF until fan ON.
+  this->controller_.set_enabled(true);
+  this->schedule_transmit_();
+  ESP_LOGI(TAG, "Boot: sending OFF frames until a fan ON request");
 }
 
 void EcoFlowFan::dump_config() {
@@ -68,42 +68,11 @@ void EcoFlowFan::control(const fan::FanCall &call) {
     this->controller_.set_mode(mode);
     this->mode_select_->publish_state(static_cast<size_t>(mode));
   }
-  if (call.get_state().has_value()) {
-    const bool started = this->controller_.request_power(*call.get_state());
-    this->sync_control_(started);
-  }
+  if (call.get_state().has_value()) this->controller_.set_power(*call.get_state());
   this->publish_requested_();
-  ESP_LOGI(TAG, "Request: power=%s speed=%u mode=%s control=%s (not confirmed by ERV)",
+  ESP_LOGI(TAG, "Request: power=%s speed=%u mode=%s (not confirmed by ERV)",
            ONOFF(this->controller_.power()), unsigned(this->controller_.speed()),
-           mode_name(this->controller_.mode()), ONOFF(this->controller_.enabled()));
-}
-
-void EcoFlowFan::enable_control(bool enabled) {
-  if (this->is_failed()) {
-    this->gate_->publish_state(false);
-    return;
-  }
-  const bool changed = enabled != this->controller_.enabled();
-  this->controller_.set_enabled(enabled);
-  this->sync_control_(changed);
-  this->publish_requested_();
-  if (changed) ESP_LOGW(TAG, "%s", enabled ? "Control armed: sending OFF until explicitly turned on"
-                                          : "Control muted; ERV may retain its last state");
-}
-
-void EcoFlowFan::sync_control_(bool changed) {
-  const bool enabled = this->controller_.enabled();
-  if (changed) {
-    // A deliberately muted interval is not scheduler lateness.
-    this->has_tx_ = false;
-    this->last_tx_gap_ = 0;
-    this->max_tx_gap_ = 0;
-    if (enabled)
-      this->schedule_transmit_();
-    else
-      this->cancel_timeout("transmit");
-  }
-  this->gate_->publish_state(enabled);
+           mode_name(this->controller_.mode()));
 }
 
 void EcoFlowFan::select_mode(size_t index) {
@@ -154,8 +123,8 @@ void EcoFlowFan::log_diagnostics_(uint32_t now) {
                                       : "OUT stale / disconnected");
   }
   const auto rejected = this->parser_.bad_checksum_candidates();
-  ESP_LOGD(TAG, "Stats t=%u ms: control=%s TX=%u RX=%u RXbytes=%u bad_candidates=%u unknown=%u OUT=%s",
-           unsigned(now), ONOFF(this->controller_.enabled()), unsigned(this->tx_frames_), unsigned(this->rx_frames_),
+  ESP_LOGD(TAG, "Stats t=%u ms: TX=%u RX=%u RXbytes=%u bad_candidates=%u unknown=%u OUT=%s",
+           unsigned(now), unsigned(this->tx_frames_), unsigned(this->rx_frames_),
            unsigned(this->rx_bytes_), unsigned(rejected), unsigned(this->unknown_frames_),
            this->out_live_ ? "fresh" : "absent/stale");
   if (this->has_tx_)
@@ -197,7 +166,6 @@ void EcoFlowFan::loop() {
 }
 
 void EcoFlowFan::schedule_transmit_() {
-  if (!this->controller_.enabled()) return;
   // ESPHome 2026.8 services scheduler deadlines independently of its default
   // 16 ms component polling interval. Polling TX from loop() rounded 97 ms up
   // to 112 ms on the bench. Keep a single timer, anchored to the last actual
@@ -206,8 +174,6 @@ void EcoFlowFan::schedule_transmit_() {
 }
 
 void EcoFlowFan::transmit_() {
-  // Also guard the callback itself against a canceled/in-flight timer.
-  if (!this->controller_.enabled()) return;
   const uint32_t now = millis();
   Frame frame;
   if (this->controller_.next_frame(now, frame)) {

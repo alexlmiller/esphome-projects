@@ -5,21 +5,12 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/fan/fan.h"
 #include "esphome/components/select/select.h"
-#include "esphome/components/switch/switch.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/uart/uart.h"
 
 namespace esphome::eco_flow_erv {
 
 class EcoFlowFan;
-
-class ControlSwitch : public switch_::Switch {
- public:
-  explicit ControlSwitch(EcoFlowFan *parent) : parent_(parent) {}
- protected:
-  void write_state(bool state) override;
-  EcoFlowFan *parent_;
-};
 
 class ModeSelect : public select::Select {
  public:
@@ -41,24 +32,20 @@ class EcoFlowFan : public Component, public fan::Fan, public uart::UARTDevice {
   void set_out_timeout(uint32_t ms) { this->out_timeout_ = ms; }
   void set_diagnostics_interval(uint32_t ms) { this->diagnostics_interval_ = ms; }
   void set_recovery_enabled(bool enabled) { this->recovery_enabled_ = enabled; }
-  void set_control_switch(ControlSwitch *gate) { this->gate_ = gate; }
   void set_mode_select(ModeSelect *mode) { this->mode_select_ = mode; }
   void set_observed_frame(text_sensor::TextSensor *sensor) { this->observed_ = sensor; }
   void set_out_active(binary_sensor::BinarySensor *sensor) { this->active_ = sensor; }
-  void enable_control(bool enabled);
   void select_mode(size_t index);
 
  protected:
   void control(const fan::FanCall &call) override;
   void publish_requested_();
-  void sync_control_(bool changed);
   void receive_(const Frame &frame, uint32_t now);
   void log_diagnostics_(uint32_t now);
   void schedule_transmit_();
   void transmit_();
   Controller controller_;
   Parser parser_;
-  ControlSwitch *gate_{nullptr};
   ModeSelect *mode_select_{nullptr};
   text_sensor::TextSensor *observed_{nullptr};
   binary_sensor::BinarySensor *active_{nullptr};
