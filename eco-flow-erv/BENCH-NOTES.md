@@ -335,4 +335,12 @@ HA rounds a fan percentage up to the next speed: 33/66/100 % select speeds
 
 Alex then asked to remove **Enable control frames**. The Nano now streams from
 boot (OFF until a fan ON request) and has no mute, so a reboot or OTA leaves
-the ERV stopped. This build has not been physically verified yet.
+the ERV stopped.
+
+`b7f520a` was then built with ESPHome 2026.10.1 and flashed from lev-haos.
+DEBUG logs showed 254 OFF frames in the first 25 s after boot with no HA
+command, at 97 ms spacing (113 ms window maximum). HA dropped the removed
+switch entity automatically. The first ON at speed 1 had no physical effect:
+the frames were correct, but Alex found the ERV's protection circuit had
+tripped. The Nano rebooted at about the same time; the cause is unknown. After
+the protection reset, the ERV followed ON at speed 1 and OFF.
