@@ -55,7 +55,7 @@ int main() {
   Controller c;
   c.set_power(true);
   assert(!c.power());
-  assert(!c.next_frame(0, received));  // No boot transmission.
+  assert(!c.next_frame(0, received));  // Silent until setup enables it.
   c.set_mode(Mode::EXHAUST);
   c.set_speed(3);
   c.set_enabled(true);
@@ -82,6 +82,28 @@ int main() {
   assert(c.next_frame(20001, received) && received == off);
 
   Controller recovery;
+  // Component boot: enable once in setup(), stream OFF, never restore power.
+  Controller boot;
+  boot.set_speed(3);
+  boot.set_mode(Mode::EXHAUST);
+  boot.set_power(true);  // A request before setup is dropped, not restored.
+  assert(!boot.enabled() && !boot.power());
+  assert(!boot.next_frame(0, received));  // A failed setup never transmits.
+  boot.set_enabled(true);
+  assert(!boot.power());
+  assert(boot.next_frame(0, received) && received == off);
+  boot.set_power(true);
+  assert(!boot.next_frame(1, received));  // A fan command causes no burst.
+  assert(boot.next_frame(97, received) && received == exhaust[2]);
+  boot.set_power(false);
+  assert(boot.next_frame(194, received) && received == off);  // OFF keeps streaming.
+  boot.set_mode(Mode::SUPPLY);
+  boot.set_speed(2);
+  assert(!boot.power());  // Speed/direction changes while off never power on.
+  assert(boot.next_frame(291, received) && received == off);
+  boot.set_power(true);
+  assert(boot.next_frame(388, received) && received == supply[1]);
+
   recovery.set_enabled(true);
   recovery.set_mode(Mode::RECOVERY);
   recovery.set_power(true);
@@ -150,5 +172,5 @@ int main() {
   assert(deadline_wrap.next_frame_delay(55) == 1);
   assert(deadline_wrap.next_frame_delay(56) == 0);
   assert(deadline_wrap.next_frame(56, received));
-  std::cout << "PASS: captured matrix, inferred fixtures, parser, arming, power independence, recovery, deadlines and wrap\n";
+  std::cout << "PASS: captured matrix, inferred fixtures, parser, boot streaming, power independence, recovery, deadlines and wrap\n";
 }

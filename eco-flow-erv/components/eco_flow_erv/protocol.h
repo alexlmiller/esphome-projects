@@ -70,11 +70,13 @@ class Controller {
   void set_interval(uint32_t ms) { this->interval_ms_ = ms; }
   void set_phase_packets(uint16_t packets) { this->phase_packets_ = packets; }
 
+  // The component enables once in setup(), after validating timing, and then
+  // streams for as long as it runs. Starts disabled so a failed setup is silent.
   void set_enabled(bool enabled) {
     if (enabled == this->enabled_) return;
     this->enabled_ = enabled;
-    this->power_ = false;  // Arming never starts a previously requested speed.
-    // Preserve the last TX time across rapid disarm/re-arm so an in-flight
+    this->power_ = false;  // Enabling never starts a previously requested speed.
+    // Preserve the last TX time across rapid disable/enable so an in-flight
     // packet cannot be followed immediately by another queued packet.
     this->reset_phase_();
   }
@@ -90,8 +92,8 @@ class Controller {
     if (mode != this->mode_) this->reset_phase_();
     this->mode_ = mode;
   }
-  // Relative deadline for the component's one-shot TX timer. Check enabled()
-  // before scheduling; retain this deadline across a quick disarm/re-arm.
+  // Relative deadline for the component's one-shot TX timer; retained across
+  // a quick disable/enable.
   uint32_t next_frame_delay(uint32_t now) const {
     if (!this->sent_) return 0;
     const uint32_t elapsed = now - this->last_tx_;

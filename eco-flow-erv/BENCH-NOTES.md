@@ -283,3 +283,64 @@ features or an unattended installation can be considered validated.
 Deployed `eco-flo-bedroom.yaml` to the lev-haos ESPHome dashboard. Encrypted
 network logs were verified from both the add-on and its dashboard. No firmware
 flash, shared-secret change, add-on restart or control command was needed.
+
+## Installed RX check — 2026-09-18
+
+Alex reported the unit closed, both IN/OUT connected, and working speed control;
+the OUT-to-Nano connection is direct, not through the purchased PC817 modules.
+A read-only encrypted API sample identified the same Nano and September 10
+firmware (ESPHome 2026.8.2). HA requested Supply, speed 3, with control enabled.
+
+Over 30.048 seconds, RX bytes increased 15,578 → 16,466 (888 bytes), but valid
+frames, rejected checksum candidates, and unknown frames all remained zero.
+OUT stayed `No OUT data`. TX increased 3,818 → 4,128; software queue gaps were
+usually 97 ms, with 113 ms window maxima. This confirms incoming UART bytes,
+not valid decoded packets or an acknowledgement. Polarity/framing or signal
+quality still need investigation; no waveform or raw bytes were captured.
+
+No firmware, polarity, wiring, fan state, or HA registry changes were made by
+this diagnostic check. Direct RX voltage protection remains unverified.
+
+## HA controls branch preview — 2026-09-18
+
+Deployed `codex/erv-ha-controls` (`184d399`) through the lev-haos dashboard,
+built with ESPHome 2026.9.0. PR #13 remains unmerged. Both live package and
+component refs point to the branch; the committed infra wrapper still uses
+`main`, so an infra redeploy would replace this temporary preview configuration.
+
+Explicit fan OFF from disarmed boot enabled repeated stop frames; fan ON
+restored Supply/speed 3 without a gate command. HA shows three speeds and
+direction. Entity IDs were preserved and the diagnostic control switch was
+hidden through HA settings, not switched off. Physical re-verification of this
+build is separate from these API/log checks.
+
+RX remained unverified: the first branch build received one byte then no more,
+with zero valid frames. A receive-only non-inverted test received zero bytes
+and zero frames during a 25-second sample. TX settings were unchanged. This
+does not establish a cause; it also differs from the earlier 2026.8.2 sample.
+The unsuccessful RX override was removed and the original inverted-RX branch
+image restored. No protected interface or electrical safety validation occurred.
+
+## Physical HA test and control-switch removal — 2026-10-31
+
+After the Nano came back online on the `184d399` branch build, Alex physically
+confirmed each step through HA's **Requested fan**: Supply speed 1 → 2 → 3,
+reverse to Exhaust 3 → 2 → 1, OFF, then Supply speed 1. A final OFF was sent.
+Fan ON and OFF both enabled the control stream without the diagnostic switch,
+which stayed on through the OFF interval (stop frames repeating). Changing
+direction while off left the fan off and moved the airflow selector.
+
+HA rounds a fan percentage up to the next speed: 33/66/100 % select speeds
+1/2/3. A 67 % request briefly selected speed 3 during the test.
+
+Alex then asked to remove **Enable control frames**. The Nano now streams from
+boot (OFF until a fan ON request) and has no mute, so a reboot or OTA leaves
+the ERV stopped.
+
+`b7f520a` was then built with ESPHome 2026.10.1 and flashed from lev-haos.
+DEBUG logs showed 254 OFF frames in the first 25 s after boot with no HA
+command, at 97 ms spacing (113 ms window maximum). HA dropped the removed
+switch entity automatically. The first ON at speed 1 had no physical effect:
+the frames were correct, but Alex found the ERV's protection circuit had
+tripped. The Nano rebooted at about the same time; the cause is unknown. After
+the protection reset, the ERV followed ON at speed 1 and OFF.

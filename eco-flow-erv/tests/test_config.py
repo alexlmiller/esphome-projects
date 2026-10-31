@@ -41,6 +41,14 @@ class ConfigurationTests(unittest.TestCase):
         output = self.check_config()
         self.assertRegex(output, r"tx_pin:\n\s+number: (?:1|GPIO1)\n\s+inverted: false\n")
         self.assertRegex(output, r"rx_pin:\n\s+number: (?:2|GPIO2)\n\s+inverted: true\n")
+        self.assertIn("name: Requested fan", output)  # Preserve HA identity.
+        self.assertNotIn("Enable control frames", output)  # Always streams; no mute.
+
+    def test_control_switch_removed(self):
+        self.check_config(
+            "fan:\n  - id: !extend erv\n    control_enabled:\n      name: Enable control frames\n",
+            False, "control_enabled",
+        )
 
     def test_recovery_opt_in(self):
         self.check_config("substitutions:\n  erv_enable_recovery: 'true'\n")
@@ -70,18 +78,6 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_on_restore_rejected(self):
         self.check_config("fan:\n  - id: !extend erv\n    restore_mode: ALWAYS_ON\n", False, "NO_RESTORE")
-
-    def test_auto_arm_rejected(self):
-        self.check_config(
-            "fan:\n  - id: !extend erv\n    control_enabled:\n      restore_mode: ALWAYS_ON\n",
-            False, "ALWAYS_OFF",
-        )
-
-    def test_gate_inversion_rejected(self):
-        self.check_config(
-            "fan:\n  - id: !extend erv\n    control_enabled:\n      inverted: true\n",
-            False, "Inverted is not supported",
-        )
 
     def test_parity_rejected(self):
         self.check_config("uart:\n  parity: NONE\n", False, "parity EVEN")

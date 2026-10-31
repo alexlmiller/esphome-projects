@@ -9,21 +9,26 @@ installation and controller-loss behavior are not yet validated.
 
 ## Home Assistant controls
 
-1. Enable **Enable control frames**. This starts repeating OFF, not the fan.
-2. Select **Requested airflow mode**: Supply or Exhaust.
-3. Open **Requested fan** for on/off and three-speed control.
-4. To stop, turn the fan OFF before disabling control frames.
+Open **Requested fan** for on/off, three speeds, and direction:
+**Forward = Supply**, **Reverse = Exhaust**. The Nano sends a command frame
+every 97 ms for as long as it runs: the requested speed when ON, the stop
+command when OFF. There is no arming step or mute switch. The **Requested
+airflow mode** selector stays synchronized for named Supply/Exhaust choices and
+compatibility with existing automations.
+
+Entity names/IDs are unchanged to preserve HA history and automations. Optional
+HA display-name overrides can shorten them without changing the entity IDs.
 
 The fan reports requested state, not measured airflow. Mode or speed-only
 changes while off do not power on; an explicit ON request is required.
-Every reboot starts OFF, speed 1, Supply, with control frames disabled.
-Wi-Fi/API loss does not deliberately reboot the Nano; an armed local stream
+Every boot starts OFF, speed 1, Supply, and streams the stop command at once,
+so after a Nano reboot or OTA update the ERV stays stopped until HA turns it
+back on. A requested ON is never restored after a reboot.
+Wi-Fi/API loss does not deliberately reboot the Nano; the local stream
 continues while it runs.
 
-**Disabling control frames is not a stop command or electrical disconnect.**
-The ERV may retain its last state after transmission loss; this is untested.
-TX still drives idle HIGH while disarmed. There is no proven controller-loss
-failsafe.
+The ERV may retain its last state if the stream stops (Nano unpowered or
+crashed); this is untested. There is no proven controller-loss failsafe.
 
 The deployed `lev-haos` dashboard entry is **eco-flo-bedroom.yaml**.
 Choose **Logs → On the network** to view DEBUG logs; no Install/flash is needed.
@@ -67,6 +72,7 @@ setting. The polarity discrepancy is unresolved, and working TX does not
 validate RX. OUT diagnostics are observation only, never acknowledgement or
 motor feedback. They become stale after two seconds without a valid frame.
 No RX connection is needed for control.
+The OUT text diagnostic distinguishes incoming undecodable bytes from silence.
 
 | Substitution | Default |
 | --- | --- |
@@ -89,6 +95,8 @@ speeds 2/3 is inferred, not captured or physically verified. Phase restarts on
 power/mode changes are implementation policy, not established factory behavior.
 Keep recovery disabled until separately tested. Night/humidity policy, passive
 ventilation, filter status and simultaneous remote control are out of scope.
+Opting into recovery omits the fan's two-way direction feature; use the airflow
+selector instead because alternating recovery has no single requested direction.
 
 ## Package import
 
