@@ -83,9 +83,17 @@ syslog:
 
 ## External component pinning
 
-The package pins `echavet/MitsubishiCN105ESPHome` to its latest stable release,
-`@2026.5.1`. This release includes the sensor API and uptime implementation
-changes required by ESPHome 2026.8.
+The package pins `echavet/MitsubishiCN105ESPHome` to `@2026.11.1`; the repository
+validation toolchain is ESPHome 2026.10.2. The firmware changes since 2026.5.1 include
+startup and uptime-rollover fixes. On Encoding A indoor units, corrected remote
+temperature encoding removes the previous 0.5 °C offset; compare room-temperature
+regulation after any future firmware rollout. Compressor frequency filtering is
+now opt-in, so the package reports the upstream unfiltered values by default.
+
+The 2026.11.1 HACS config-entry migration is separate from this ESPHome package;
+updating this pin does not install or migrate the Home Assistant integration.
+Repository updates do not flash devices. Compile this package before an
+explicitly authorized firmware rollout.
 
 ## Compatible indoor units
 

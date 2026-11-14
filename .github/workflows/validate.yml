@@ -76,3 +76,6 @@ jobs:
 
       - name: Compile ERV NanoC6 prototype (no flash)
         run: esphome compile eco-flow-erv/eco-flow-erv.yaml
+
+      - name: Compile Mitsubishi CN105 external component (no flash)
+        run: esphome compile mitsubishi-cn105/mitsubishi-cn105.yaml
