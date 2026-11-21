@@ -44,12 +44,13 @@ esphome:
 
 esp32:
   board: esp32dev
+  cpu_frequency: 240MHZ
   framework:
     type: esp-idf
     version: recommended
     sdkconfig_options:
-      CONFIG_FREERTOS_UNICORE: "false"
-      CONFIG_ESP32_DEFAULT_CPU_FREQ_240: "true"
+      # Kconfig booleans take "y"/"n", not "true"/"false".
+      CONFIG_FREERTOS_UNICORE: "n"
 
 logger:
   level: INFO
